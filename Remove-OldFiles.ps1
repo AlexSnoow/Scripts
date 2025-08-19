@@ -1,28 +1,53 @@
+<#
+.SYNOPSIS
+Управляет хранением файлов по сроку давности
+
+.DESCRIPTION
+Функция для автоматической очистки старых файлов с гарантией сохранения 
+минимального количества последних версий. Поддерживает подтверждение операций.
+
+.PARAMETER Path
+Целевая директория (обязательный)
+
+.PARAMETER DaysOld
+Максимальный возраст файлов в днях (1-3650)
+
+.PARAMETER KeepCount
+Минимальное количество сохраняемых файлов (1-1000)
+
+.EXAMPLE
+    Загрузить функцию в сессию
+    . C:\Scripts\Remove-OldFiles.ps1
+    Вызов функции
+    Remove-OldFiles -Path "D:\Backups" -DaysOld 180
+    Удалить файлы старше 6 месяцев, сохранив по умолчанию 5 последних
+
+.EXAMPLE
+    Remove-OldFiles -Path "C:\Logs" -KeepCount 10 -WhatIf
+    Тестовый запуск: показать какие файлы будут удалены без реального удаления
+
+.EXAMPLE
+    Вызов из другого скрипта
+    # Скрипт MainScript.ps1
+    try {
+        # Импорт функции
+        . "C:\Scripts\Remove-OldFiles.ps1"
+    
+        # Вызов с параметрами
+        Remove-OldFiles -Path "E:\AppLogs" -DaysOld 90 -KeepCount 3
+    
+        Write-Host "Очистка завершена успешно"
+    }
+    catch {
+        Write-Error "Ошибка: $_"
+    }
+
+.NOTES
+Автор: Иванов
+Версия: 1.0 (2025-08-18)
+#>
+
 function Remove-OldFiles {
-    <#
-    .SYNOPSIS
-    РЈРґР°Р»СЏРµС‚ С„Р°Р№Р»С‹ СЃС‚Р°СЂС€Рµ СѓРєР°Р·Р°РЅРЅРѕРіРѕ РІРѕР·СЂР°СЃС‚Р°, СЃРѕС…СЂР°РЅСЏСЏ РјРёРЅРёРјР°Р»СЊРЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ РїРѕСЃР»РµРґРЅРёС… С„Р°Р№Р»РѕРІ.
-    
-    .DESCRIPTION
-    РЎРєСЂРёРїС‚ СѓРґР°Р»СЏРµС‚ С„Р°Р№Р»С‹ РІ СѓРєР°Р·Р°РЅРЅРѕР№ РґРёСЂРµРєС‚РѕСЂРёРё, РєРѕС‚РѕСЂС‹Рµ СЃС‚Р°СЂС€Рµ Р·Р°РґР°РЅРЅРѕРіРѕ РєРѕР»РёС‡РµСЃС‚РІР° РґРЅРµР№,
-    РЅРѕ РІСЃРµРіРґР° СЃРѕС…СЂР°РЅСЏРµС‚ РјРёРЅРёРјР°Р»СЊРЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ СЃР°РјС‹С… РЅРѕРІС‹С… С„Р°Р№Р»РѕРІ (РґР°Р¶Рµ РµСЃР»Рё РѕРЅРё РїСЂРѕСЃСЂРѕС‡РµРЅС‹).
-    
-    .PARAMETER Path
-    РџСѓС‚СЊ Рє С†РµР»РµРІРѕР№ РґРёСЂРµРєС‚РѕСЂРёРё
-    
-    .PARAMETER DaysOld
-    РњР°РєСЃРёРјР°Р»СЊРЅС‹Р№ РІРѕР·СЂР°СЃС‚ С„Р°Р№Р»РѕРІ РІ РґРЅСЏС… (РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ 30)
-    
-    .PARAMETER KeepCount
-    РњРёРЅРёРјР°Р»СЊРЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ С„Р°Р№Р»РѕРІ РґР»СЏ СЃРѕС…СЂР°РЅРµРЅРёСЏ (РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ 5)
-    
-    .EXAMPLE
-    Remove-OldFiles -Path "C:\Logs" -DaysOld 30 -KeepCount 10
-    
-    .NOTES
-    Р’РµСЂСЃРёСЏ: 1.1 (15.08.2025)
-    #>
-    
     [CmdletBinding(SupportsShouldProcess = $true)]
     param(
         [Parameter(Mandatory = $true)]
@@ -35,55 +60,48 @@ function Remove-OldFiles {
         [int]$KeepCount = 5
     )
 
-    # РџСЂРѕРІРµСЂРєР° СЃСѓС‰РµСЃС‚РІРѕРІР°РЅРёСЏ РґРёСЂРµРєС‚РѕСЂРёРё
     if (-not (Test-Path -Path $Path -PathType Container)) {
-        Write-Error "Р”РёСЂРµРєС‚РѕСЂРёСЏ $Path РЅРµ СЃСѓС‰РµСЃС‚РІСѓРµС‚ РёР»Рё РЅРµРґРѕСЃС‚СѓРїРЅР°"
+        Write-Error "Директория $Path не существует или недоступна"
         return
     }
 
     try {
-        # Р Р°СЃСЃС‡РµС‚ РїРѕСЂРѕРіРѕРІРѕР№ РґР°С‚С‹
         $cutoffDate = (Get-Date).AddDays(-$DaysOld)
+        $allFiles = @(Get-ChildItem -Path $Path -File -ErrorAction Stop | Sort-Object LastWriteTime -Descending)
         
-        # РџРѕР»СѓС‡РµРЅРёРµ РІСЃРµС… С„Р°Р№Р»РѕРІ РІ РґРёСЂРµРєС‚РѕСЂРёРё
-        $allFiles = @(Get-ChildItem -Path $Path -File -ErrorAction Stop)
-        
-        # РџСЂРѕРІРµСЂРєР° РЅР°Р»РёС‡РёСЏ С„Р°Р№Р»РѕРІ
         if ($allFiles.Count -eq 0) {
-            Write-Host "Р’ РґРёСЂРµРєС‚РѕСЂРёРё РЅРµС‚ С„Р°Р№Р»РѕРІ РґР»СЏ РѕР±СЂР°Р±РѕС‚РєРё"
+            Write-Host "В директории нет файлов для обработки"
             return
         }
 
-        # Р Р°Р·РґРµР»РµРЅРёРµ С„Р°Р№Р»РѕРІ РЅР° РіСЂСѓРїРїС‹
-        $expiredFiles = $allFiles | Where-Object { $_.LastWriteTime -lt $cutoffDate }
-        $validFiles = $allFiles | Where-Object { $_.LastWriteTime -ge $cutoffDate }
+        # 1. Сохраняем TOP-$KeepCount самых новых файлов (ВСЕГДА)
+        $filesToKeep = $allFiles | Select-Object -First $KeepCount
 
-        # РћРїСЂРµРґРµР»РµРЅРёРµ С„Р°Р№Р»РѕРІ РґР»СЏ СѓРґР°Р»РµРЅРёСЏ СЃ СѓС‡РµС‚РѕРј РјРёРЅРёРјР°Р»СЊРЅРѕРіРѕ РєРѕР»РёС‡РµСЃС‚РІР°
-        $filesToDelete = if ($expiredFiles.Count -gt $KeepCount) {
-            $expiredFiles | 
-                Sort-Object LastWriteTime -Descending | 
-                Select-Object -Skip $KeepCount
-        } else {
-            @()
+        # 2. Формируем список для удаления:
+        #   - Файлы старше $cutoffDate
+        #   - Исключаем файлы из $filesToKeep
+        $filesToDelete = $allFiles | Where-Object {
+            $_.LastWriteTime -lt $cutoffDate -and
+            $filesToKeep.FullName -notcontains $_.FullName
         }
 
-        # РЈРґР°Р»РµРЅРёРµ С„Р°Р№Р»РѕРІ СЃ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёРµРј
+        # Удаление с подтверждением
         if ($filesToDelete.Count -gt 0) {
-            Write-Host "РќР°Р№РґРµРЅРѕ С„Р°Р№Р»РѕРІ РґР»СЏ СѓРґР°Р»РµРЅРёСЏ: $($filesToDelete.Count)"
-            
+            Write-Host "Найдено файлов для удаления: $($filesToDelete.Count)"
             foreach ($file in $filesToDelete) {
-                if ($PSCmdlet.ShouldProcess($file.FullName, "РЈРґР°Р»РµРЅРёРµ С„Р°Р№Р»Р°")) {
+                if ($PSCmdlet.ShouldProcess($file.FullName, "Удаление файла")) {
                     Remove-Item $file.FullName -Force -ErrorAction Continue
                 }
             }
-            
-            Write-Host "РЈРґР°Р»РµРЅРѕ С„Р°Р№Р»РѕРІ: $($filesToDelete.Count)"
-            Write-Host "РЎРѕС…СЂР°РЅРµРЅРѕ С„Р°Р№Р»РѕРІ: $($allFiles.Count - $filesToDelete.Count)"
+            Write-Host "Удалено файлов: $($filesToDelete.Count)"
         } else {
-            Write-Host "РќРµС‚ С„Р°Р№Р»РѕРІ РґР»СЏ СѓРґР°Р»РµРЅРёСЏ. РЎРѕС…СЂР°РЅРµРЅРѕ С„Р°Р№Р»РѕРІ: $($allFiles.Count)"
+            Write-Host "Нет файлов для удаления"
         }
+        
+        # Общая статистика
+        Write-Host "Сохранено файлов: $($allFiles.Count - $filesToDelete.Count)"
     }
     catch {
-        Write-Error "РћС€РёР±РєР° РїСЂРё РѕР±СЂР°Р±РѕС‚РєРµ С„Р°Р№Р»РѕРІ: $_"
+        Write-Error "Ошибка при обработке файлов: $_"
     }
 }

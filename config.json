@@ -1,0 +1,29 @@
+﻿[
+    {
+        "Name": "Резервная копия проекта X",
+        "SRC": "C:\\Projects\\X",
+        "DST": "D:\\Backups\\ProjectX",
+        "ArchiveName": "ProjectX-{datetime}",
+        "Keys": "a -r -m5 -dh -ep1",
+        "ArchiveExtension": "rar",
+        "Enabled": true
+    },
+    {
+        "Name": "Резервная копия документов",
+        "SRC": "C:\\Users\\Admin\\Documents",
+        "DST": "D:\\Backups\\Documents",
+        "ArchiveName": "Documents-{date}",
+        "Keys": "a -r -m3 -dh",
+        "ArchiveExtension": "rar",
+        "Enabled": true
+    },
+    {
+        "Name": "Резервная копия фото",
+        "SRC": "C:\\Users\\Admin\\Pictures",
+        "DST": "D:\\Backups\\Photos",
+        "ArchiveName": "Photos-{date}",
+        "Keys": "a -r -m1",
+        "ArchiveExtension": "rar",
+        "Enabled": false
+    }
+]
