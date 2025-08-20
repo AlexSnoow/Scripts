@@ -1,29 +1,29 @@
 ﻿[
     {
-        "Name": "Резервная копия проекта X",
-        "SRC": "C:\\Projects\\X",
-        "DST": "D:\\Backups\\ProjectX",
-        "ArchiveName": "ProjectX-{datetime}",
+        "Name": "Резервная копия 1",
+        "SRC": "C:\\test\\backup1",
+        "DST": "C:\\test\\rar",
+        "ArchiveName": "backup1-{datetime}",
         "Keys": "a -r -m5 -dh -ep1",
         "ArchiveExtension": "rar",
         "Enabled": true
     },
     {
-        "Name": "Резервная копия документов",
-        "SRC": "C:\\Users\\Admin\\Documents",
-        "DST": "D:\\Backups\\Documents",
-        "ArchiveName": "Documents-{date}",
-        "Keys": "a -r -m3 -dh",
+        "Name": "Резервная копия 2",
+        "SRC": "C:\\test\\backup2",
+        "DST": "C:\\test\\rar",
+        "ArchiveName": "backup2-{datetime}",
+        "Keys": "a -r -m5 -dh -ep1",
         "ArchiveExtension": "rar",
         "Enabled": true
     },
     {
-        "Name": "Резервная копия фото",
-        "SRC": "C:\\Users\\Admin\\Pictures",
-        "DST": "D:\\Backups\\Photos",
-        "ArchiveName": "Photos-{date}",
-        "Keys": "a -r -m1",
+        "Name": "Резервная копия 3",
+        "SRC": "C:\\test\\backup3",
+        "DST": "C:\\test\\rar",
+        "ArchiveName": "backup3-{datetime}",
+        "Keys": "a -r -m5 -dh -ep1",
         "ArchiveExtension": "rar",
-        "Enabled": false
+        "Enabled": true
     }
 ]

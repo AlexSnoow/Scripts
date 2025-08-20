@@ -1,4 +1,4 @@
-﻿<#
+﻿<# file Create_Backup_Rar.ps1
 .SYNOPSIS
     Выполняет архивацию данных с помощью RAR
 
@@ -17,6 +17,7 @@
 
 .PARAMETER ArchiveName
     Имя архива (может содержать плейсхолдеры {date}, {time}, {datetime})
+Write-Verbose "Команда: $RarPath $rarArgs"
 
 .PARAMETER Keys
     Ключи и команды для RAR (по умолчанию: стандартные параметры архивации)
@@ -25,7 +26,8 @@
     Расширение архива (по умолчанию: "rar")
 
 .EXAMPLE
-    Backup-WithRAR -SRC "C:\Data" -DST "D:\Backups" -ArchiveName "DataBackup-{date}"
+    #Простой запуск
+    Backup-WithRAR -SRC "C:\test\backup1" -DST "C:\test\rar" -ArchiveName "DataBackup-{datetime}"
 
 .EXAMPLE
     Backup-WithRAR -SRC "C:\Logs" -DST "\\server\backups" -ArchiveName "Logs" -Keys "a -r -m5 -dh -ep1"
@@ -40,7 +42,7 @@
 
 .EXAMPLE
     # С проверкой свободного места
-    Backup-WithRAR -SRC "D:\Database" -DST "F:\Backups" -ArchiveName "DB-{date}" -Keys "a -r -m5 -hp -ep1"
+    Backup-WithRAR -SRC "C:\test\backup1" -DST "C:\test\rar" -ArchiveName "DB-{date}" -Keys "a -r -m5 -hp -ep1"
 
 .NOTES
     Автор: Иванов
@@ -52,16 +54,16 @@ function Backup-WithRAR {
     param(
         [Parameter(Mandatory = $false)]
         [ValidateScript({
-            if (-not (Test-Path $_)) { throw "RAR не найден по указанному пути: $_" }
-            $true
-        })]
-        [string]$RarPath = "C:\Program Files\RAR\Rar.exe",
+                if (-not (Test-Path $_)) { throw "RAR не найден по указанному пути: $_" }
+                $true
+            })]
+        [string]$RarPath = "C:\Program Files\WinRAR\Rar.exe",
 
         [Parameter(Mandatory = $true)]
         [ValidateScript({
-            if (-not (Test-Path $_)) { throw "Источник не существует: $_" }
-            $true
-        })]
+                if (-not (Test-Path $_)) { throw "Источник не существует: $_" }
+                $true
+            })]
         [string]$SRC,
 
         [Parameter(Mandatory = $true)]
@@ -69,13 +71,13 @@ function Backup-WithRAR {
 
         [Parameter(Mandatory = $true)]
         [ValidateScript({
-            if ($_ -match '[<>:|"?*]') { throw "Имя архива содержит недопустимые символы" }
-            $true
-        })]
+                if ($_ -match '[<>:|"?*]') { throw "Имя архива содержит недопустимые символы" }
+                $true
+            })]
         [string]$ArchiveName,
 
         [Parameter(Mandatory = $false)]
-        [string]$Keys = "a -r -m3 -dh -ep1 -ilog",
+        [string]$Keys = "a -r -m3 -dh -ep1",
 
         [Parameter(Mandatory = $false)]
         [ValidateSet("rar", "zip", "7z")]
@@ -111,23 +113,18 @@ function Backup-WithRAR {
 
     # Формирование полных путей
     $archivePath = Join-Path $DST "$finalArchiveName.$ArchiveExtension"
-    $logPath = Join-Path $DST "$finalArchiveName.log"
+    $logPath = Join-Path $DST "$finalArchiveName.log.txt"
+    $logErrPath = Join-Path $DST "$finalArchiveName.err.txt"
 
     # Экранирование путей с пробелами
     $escapedArchivePath = '"{0}"' -f $archivePath
     $escapedSrcPath = '"{0}"' -f $SRC
-    $escapedLogPath = '"{0}"' -f $logPath
-
-    # Добавление лог-файла в ключи
-    $keysWithLog = if ($Keys -match "-ilog") {
-        $Keys -replace "-ilog", "-ilog$escapedLogPath"
-    } else {
-        "$Keys -ilog$escapedLogPath"
-    }
+    
+    
 
     # Формирование командной строки
     $rarArgs = @(
-        $keysWithLog,
+        $Keys,
         $escapedArchivePath,
         $escapedSrcPath
     ) -join " "
@@ -138,38 +135,37 @@ function Backup-WithRAR {
     # Выполнение архивации
     try {
         $processInfo = @{
-            FilePath = $RarPath
-            ArgumentList = $rarArgs
-            Wait = $true
-            PassThru = $true
-            NoNewWindow = $true
-            RedirectStandardError = "RAR_errors.txt"
+            FilePath              = $RarPath
+            ArgumentList          = $rarArgs
+            Wait                  = $true
+            PassThru              = $true
+            NoNewWindow           = $true
+            RedirectStandardOutput = $logPath
+            RedirectStandardError  = $logErrPath
         }
-        
+
         $process = Start-Process @processInfo
-        
+
         # Проверка кода возврата
         if ($process.ExitCode -eq 0) {
             Write-Host "Архивация успешно завершена!"
             Write-Host "Архив: $archivePath"
             Write-Host "Лог: $logPath"
-            
+
             # Вывод размера архива
             $archiveSize = (Get-Item $archivePath).Length / 1MB
-            Write-Host "Размер архива: {0:N2} MB" -f $archiveSize
+            if ($archiveSize -is [double] -and $archiveSize -ge 0) {
+                $sizeText = "Размер архива: {0:N2} МБ" -f $archiveSize
+                Write-Host $sizeText
+            } else {
+                Write-Warning "Не удалось определить размер архива."
+            }
         }
         else {
-            $errorContent = if (Test-Path "RAR_errors.txt") {
-                Get-Content "RAR_errors.txt" -Raw
-                Remove-Item "RAR_errors.txt" -Force
-            } else {
-                "Неизвестная ошибка RAR"
-            }
-            
             Write-Error "Архивация завершена с кодом ошибки: $($process.ExitCode)"
-            Write-Error "Ошибка: $errorContent"
+            Write-Error "Полный лог находится по адресу: $logPath"
         }
-        
+
         return $process.ExitCode
     }
     catch {

@@ -1,18 +1,12 @@
 ﻿<#
 .SYNOPSIS
-Выполняет архивацию нескольких источников данных с помощью RAR
+    Выполняет архивацию нескольких источников данных с помощью RAR
 
 .DESCRIPTION
-Скрипт для пакетной архивации нескольких папок/файлов с индивидуальными настройками для каждого источника.
+    Скрипт для пакетной архивации нескольких папок/файлов с индивидуальными настройками для каждого источника.
 
 .PARAMETER ConfigPath
-Путь к JSON-файлу с конфигурацией архивации (опционально)
-
-.EXAMPLE
-.\MultiBackup.ps1
-
-.EXAMPLE
-.\MultiBackup.ps1 -ConfigPath "C:\BackupConfigs\my_config.json"
+    Путь к JSON-файлу с конфигурацией архивации (опционально)
 
 .EXAMPLE
     # Используя встроенную конфигурацию
@@ -27,8 +21,8 @@
     Arguments: -ExecutionPolicy Bypass -File "C:\Scripts\MultiBackup.ps1" -ConfigPath "C:\BackupConfigs\daily.json"
 
 .NOTES
-Автор: Иванов
-Версия: 1.0 (2025-08-19)
+    Автор: Иванов
+    Версия: 1.0 (2025-08-19)
 #>
 
 param(
@@ -49,40 +43,40 @@ catch {
 # Определение конфигурации архивации
 $backupConfig = @(
     @{
-        Name = "Резервная копия веб-сайтов"
-        SRC = "C:\Websites"
-        DST = "D:\Backups\Web"
-        ArchiveName = "Websites-{datetime}"
-        Keys = "a -r -m5 -dh -ep1"
+        Name             = "Резервная копия веб-сайтов"
+        SRC              = "C:\Websites"
+        DST              = "D:\Backups\Web"
+        ArchiveName      = "Websites-{datetime}"
+        Keys             = "a -r -m5 -dh -ep1"
         ArchiveExtension = "rar"
-        Enabled = $true
+        Enabled          = $true
     },
     @{
-        Name = "Резервная копия баз данных"
-        SRC = "C:\Databases"
-        DST = "D:\Backups\DB"
-        ArchiveName = "Databases-{date}"
-        Keys = "a -r -m3 -dh -ep2"
+        Name             = "Резервная копия баз данных"
+        SRC              = "C:\Databases"
+        DST              = "D:\Backups\DB"
+        ArchiveName      = "Databases-{date}"
+        Keys             = "a -r -m3 -dh -ep2"
         ArchiveExtension = "rar"
-        Enabled = $true
+        Enabled          = $true
     },
     @{
-        Name = "Резервная копия конфигураций"
-        SRC = "C:\Configs"
-        DST = "D:\Backups\Config"
-        ArchiveName = "Configs-{date}"
-        Keys = "a -r -m1"
+        Name             = "Резервная копия конфигураций"
+        SRC              = "C:\Configs"
+        DST              = "D:\Backups\Config"
+        ArchiveName      = "Configs-{date}"
+        Keys             = "a -r -m1"
         ArchiveExtension = "rar"
-        Enabled = $true
+        Enabled          = $true
     },
     @{
-        Name = "Резервная копия логов"
-        SRC = "C:\Logs"
-        DST = "D:\Backups\Logs"
-        ArchiveName = "Logs-{date}"
-        Keys = "a -r -m1 -ed"
+        Name             = "Резервная копия логов"
+        SRC              = "C:\Logs"
+        DST              = "D:\Backups\Logs"
+        ArchiveName      = "Logs-{date}"
+        Keys             = "a -r -m1 -ed"
         ArchiveExtension = "rar"
-        Enabled = $true
+        Enabled          = $true
     }
 )
 
@@ -106,8 +100,8 @@ function Test-BackupSources {
     foreach ($job in $config) {
         if (-not $job.Enabled) {
             $results += @{
-                Name = $job.Name
-                Status = "Skipped"
+                Name    = $job.Name
+                Status  = "Skipped"
                 Message = "Задание отключено в конфигурации"
             }
             continue
@@ -127,13 +121,13 @@ function Test-BackupSources {
         }
         
         $results += @{
-            Name = $job.Name
-            SourceExists = $sourceExists
+            Name              = $job.Name
+            SourceExists      = $sourceExists
             DestinationAccess = $destAccess
-            Status = if ($sourceExists -and $destAccess) { "Ready" } else { "Error" }
-            Message = if (-not $sourceExists) { "Источник не существует: $($job.SRC)" }
-                     elseif (-not $destAccess) { "Нет доступа к папке назначения: $($job.DST)" }
-                     else { "Готов к архивации" }
+            Status            = if ($sourceExists -and $destAccess) { "Ready" } else { "Error" }
+            Message           = if (-not $sourceExists) { "Источник не существует: $($job.SRC)" }
+            elseif (-not $destAccess) { "Нет доступа к папке назначения: $($job.DST)" }
+            else { "Готов к архивации" }
         }
     }
     
@@ -152,8 +146,8 @@ $checkResults = Test-BackupSources $backupConfig
 
 foreach ($result in $checkResults) {
     $color = if ($result.Status -eq "Ready") { "Green" }
-             elseif ($result.Status -eq "Skipped") { "Gray" }
-             else { "Red" }
+    elseif ($result.Status -eq "Skipped") { "Gray" }
+    else { "Red" }
     
     Write-Host "[$($result.Status)] $($result.Name): $($result.Message)" -ForegroundColor $color
 }
@@ -191,15 +185,16 @@ foreach ($job in $backupConfig) {
         $status = if ($result -eq 0) { 
             $successCount++
             "Success" 
-        } else { 
+        }
+        else { 
             $failCount++
             "Failed" 
         }
         
         $results += @{
-            Name = $job.Name
-            Status = $status
-            ExitCode = $result
+            Name      = $job.Name
+            Status    = $status
+            ExitCode  = $result
             Timestamp = Get-Date
         }
         
@@ -208,11 +203,11 @@ foreach ($job in $backupConfig) {
     catch {
         $failCount++
         $results += @{
-            Name = $job.Name
-            Status = "Error"
-            ExitCode = -1
+            Name         = $job.Name
+            Status       = "Error"
+            ExitCode     = -1
             ErrorMessage = $_.Exception.Message
-            Timestamp = Get-Date
+            Timestamp    = Get-Date
         }
         Write-Host "Ошибка: $($_.Exception.Message)" -ForegroundColor Red
     }
@@ -284,7 +279,8 @@ catch {
 if ($failCount -eq 0) {
     Write-Host "Все задания выполнены успешно!" -ForegroundColor Green
     exit 0
-} else {
+}
+else {
     Write-Host "Некоторые задания завершились с ошибками" -ForegroundColor Red
     exit 1
 }
