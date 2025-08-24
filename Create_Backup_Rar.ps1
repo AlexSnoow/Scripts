@@ -16,8 +16,10 @@
     Папка назначения для сохранения архива
 
 .PARAMETER ArchiveName
-    Имя архива (может содержать плейсхолдеры {date}, {time}, {datetime})
-Write-Verbose "Команда: $RarPath $rarArgs"
+    Имя архива (может содержать плейсхолдеры {date}, {time}, {datetime}), имя может задаваться в ручную, или генерироваться автоматически.
+    На основании имен: Имя ПК + имя папки + дата-время.
+    Пример: ИмяПК-ИмяПапки-{datetime} создаст архив с именем workpc-documents-20230819-153000.rar
+    Write-Verbose "Команда: $RarPath $rarArgs"
 
 .PARAMETER Keys
     Ключи и команды для RAR (по умолчанию: стандартные параметры архивации)
@@ -39,10 +41,6 @@ Write-Verbose "Команда: $RarPath $rarArgs"
 .EXAMPLE
     # С выбором формата ZIP
     Backup-WithRAR -SRC "C:\Logs" -DST "E:\Archives" -ArchiveName "Logs-{date}" -ArchiveExtension "zip" -Verbose
-
-.EXAMPLE
-    # С проверкой свободного места
-    Backup-WithRAR -SRC "C:\test\backup1" -DST "C:\test\rar" -ArchiveName "DB-{date}" -Keys "a -r -m5 -hp -ep1"
 
 .NOTES
     Автор: Иванов
@@ -74,7 +72,8 @@ function Backup-WithRAR {
                 if ($_ -match '[<>:|"?*]') { throw "Имя архива содержит недопустимые символы" }
                 $true
             })]
-        [string]$ArchiveName,
+        [string]$ArchiveName
+        [string]$ArchiveName = "backup",
 
         [Parameter(Mandatory = $false)]
         [string]$Keys = "a -r -m3 -dh -ep1",
