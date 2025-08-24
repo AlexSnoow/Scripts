@@ -43,6 +43,17 @@
     Версия: 3.0 (2025-08-24)
     Требуется: RAR установленный в системе
 #>
+# --- Параметры при запуске напрямую ---
+
+# param(
+#     [string]$SRC,
+#     [string]$DST,
+#     [string]$ArchiveName = "backup_{SRCfolder}_{computer}_{datetime}",
+#     [string]$RarPath = "C:\Program Files\WinRAR\Rar.exe",
+#     [string]$Keys = "a -t -r -m5 -dh -tl -rr1p -s -ep2",
+#     [ValidateSet("rar","zip","7z")]
+#     [string]$ArchiveExtension = "rar"
+# )
 
 function Backup-WithRAR {
     [CmdletBinding()]

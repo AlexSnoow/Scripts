@@ -2,53 +2,67 @@
     {
         "Enabled": true,
         "Name": "Резервная копия 1",
-        "Create_Backup_Rar": true,
-        "Create_Backup_Rar_SRC": "C:\\test\\backup1",
-        "Create_Backup_Rar_DST": "C:\\test\\rar",
-        "Create_Backup_Rar_ArchiveName": "{SRCfolder}_{computer}_{datetime}",
-        "Create_Backup_Rar_Keys": "a -t -r -m5 -dh -tl -rr1p -s -ep2",
-        "Create_Backup_Rar_ArchiveExtension": "rar",
-        "Copy-Robocopy": false,
-        "Copy-Robocopy_SRC": "C:\\test\\rar",
-        "Copy-Robocopy_DST": "C:\\test\\copy",
-        "Copy-Robocopy_RobocopyPath": "C:\\Windows\\System32\\Robocopy.exe",
-        "Copy-Robocopy_LogName": "copy_log_{datetime}",
-        "Copy-Robocopy_LogPath": "C:\\test\\copy",
-        "Copy-Robocopy_Keys": "/MIR /Z /R:3 /W:10",
-        "Copy-Robocopy_CheckFreeSpace": false,
-        "Remove-OldFiles": false,
-        "Remove-OldFiles-Path": "C:\\test\\rar",
-        "Remove-OldFiles-DaysOld": "30",
-        "Remove-OldFiles-KeepCount": "5",
-        "Send-Mail": false,
-        "Send-Mail-From": "Fromadrres@domail.loc",
-        "Send-Mail-To": "toadrres@domail.loc",
-        "Send-Mail-Subject": "Резервная копия 1"
+        "BackupRar": {
+            "Enabled": true,
+            "Source": "C:\\test\\backup1",
+            "Destination": "C:\\test\\rar",
+            "ArchiveName": "{SRCfolder}_{computer}_{datetime}",
+            "Keys": "a -t -r -m5 -dh -tl -rr1p -s -ep2",
+            "Extension": "rar"
+        },
+        "Copy": {
+            "Enabled": false,
+            "Source": "C:\\test\\rar",
+            "Destination": "C:\\test\\copy",
+            "LogName": "copy_log_{datetime}",
+            "LogPath": "C:\\test\\copy",
+            "Keys": "/MIR /Z /R:3 /W:10",
+            "CheckFreeSpace": false
+        },
+        "RemoveOldFiles": {
+            "Enabled": false,
+            "Path": "C:\\test\\rar",
+            "DaysOld": 30,
+            "KeepCount": 5
+        },
+        "Notification": {
+            "Enabled": false,
+            "From": "from@domain.loc",
+            "To": "to@domain.loc",
+            "Subject": "Резервная копия 1"
+        }
     },
     {
         "Enabled": true,
         "Name": "Резервная копия 2",
-        "Create_Backup_Rar": true,
-        "Create_Backup_Rar_SRC": "C:\\test\\backup2",
-        "Create_Backup_Rar_DST": "C:\\test\\rar",
-        "Create_Backup_Rar_ArchiveName": "{SRCfolder}_{computer}_{datetime}",
-        "Create_Backup_Rar_Keys": "a -t -r -m5 -dh -tl -rr1p -s -ep2",
-        "Create_Backup_Rar_ArchiveExtension": "rar",
-        "Copy-Robocopy": false,
-        "Copy-Robocopy_SRC": "C:\\test\\rar",
-        "Copy-Robocopy_DST": "C:\\test\\copy",
-        "Copy-Robocopy_RobocopyPath": "C:\\Windows\\System32\\Robocopy.exe",
-        "Copy-Robocopy_LogName": "copy_log_{datetime}",
-        "Copy-Robocopy_LogPath": "C:\\test\\copy",
-        "Copy-Robocopy_Keys": "/MIR /Z /R:3 /W:10",
-        "Copy-Robocopy_CheckFreeSpace": false,
-        "Remove-OldFiles": false,
-        "Remove-OldFiles-Path": "C:\\test\\rar",
-        "Remove-OldFiles-DaysOld": "30",
-        "Remove-OldFiles-KeepCount": "5",
-        "Send-Mail": false,
-        "Send-Mail-From": "Fromadrres@domail.loc",
-        "Send-Mail-To": "toadrres@domail.loc",
-        "Send-Mail-Subject": "Резервная копия 1"
+        "BackupRar": {
+            "Enabled": true,
+            "Source": "C:\\test\\backup2",
+            "Destination": "C:\\test\\rar",
+            "ArchiveName": "{SRCfolder}_{computer}_{datetime}",
+            "Keys": "a -t -r -m5 -dh -tl -rr1p -s -ep2",
+            "Extension": "rar"
+        },
+        "Copy": {
+            "Enabled": false,
+            "Source": "C:\\test\\rar",
+            "Destination": "C:\\test\\copy",
+            "LogName": "copy_log_{datetime}",
+            "LogPath": "C:\\test\\copy",
+            "Keys": "/MIR /Z /R:3 /W:10",
+            "CheckFreeSpace": false
+        },
+        "RemoveOldFiles": {
+            "Enabled": false,
+            "Path": "C:\\test\\rar",
+            "DaysOld": 30,
+            "KeepCount": 5
+        },
+        "Notification": {
+            "Enabled": false,
+            "From": "from@domain.loc",
+            "To": "to@domain.loc",
+            "Subject": "Резервная копия 1"
+        }
     }
 ]
