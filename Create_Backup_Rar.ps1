@@ -93,14 +93,32 @@ function Backup-WithRAR {
     }
 
     # Замена плейсхолдеров
-    $dateString = Get-Date -Format "yyyyMMdd"
-    $timeString = Get-Date -Format "HHmmss"
-    $dateTimeString = Get-Date -Format "yyyyMMdd-HHmmss"
+    $placeholders = @{
+    "{SRCfolder}"   = Split-Path -Leaf $SRC               # имя исходного каталога
+    "{computer}"    = $env:COMPUTERNAME                   # имя компьютера
+    "{date}"        = (Get-Date -Format "yyyyMMdd")       # 20250824
+    "{time}"        = (Get-Date -Format "HHmmss")         # 153045
+    "{datetime}"    = (Get-Date -Format "yyyyMMdd-HHmmss")# 20250824-153045
+    }
+
+    # Пример шаблона (как будто задан пользователем в параметре ArchiveName)
+    $ArchiveName = "backup_{SRCfolder}_{computer}_{datetime}"
+
+    # Проходим по всем ключам словаря и заменяем в строке
+    $finalArchiveName = $ArchiveName
+    foreach ($ph in $placeholders.Keys) {
+        $finalArchiveName = $finalArchiveName -replace [regex]::Escape($ph), $placeholders[$ph]
+    }
+    # $computerString = $env:COMPUTERNAME
+    # $dateString = Get-Date -Format "yyyyMMdd"
+    # $timeString = Get-Date -Format "HHmmss"
+    # $dateTimeString = Get-Date -Format "yyyyMMdd-HHmmss"
     
-    $finalArchiveName = $ArchiveName `
-        -replace "{date}", $dateString `
-        -replace "{time}", $timeString `
-        -replace "{datetime}", $dateTimeString
+    # $finalArchiveName = $ArchiveName `
+    #     -replace "{computer}", $computerString `
+    #     -replace "{date}", $dateString `
+    #     -replace "{time}", $timeString `
+    #     -replace "{datetime}", $dateTimeString
 
     # Формирование полных путей
     $archivePath = Join-Path $DST "$finalArchiveName.$ArchiveExtension"
@@ -110,8 +128,6 @@ function Backup-WithRAR {
     # Экранирование путей с пробелами
     $escapedArchivePath = '"{0}"' -f $archivePath
     $escapedSrcPath = '"{0}"' -f $SRC
-    
-    
 
     # Формирование командной строки
     $rarArgs = @(
