@@ -16,9 +16,9 @@
     Папка назначения для сохранения архива
 
 .PARAMETER ArchiveName
-    Имя архива (может содержать плейсхолдеры {date}, {time}, {datetime}), имя может задаваться в ручную, или генерироваться автоматически.
+    Имя архива (может содержать плейсхолдеры {SRCfolder}, {computer}, {date}, {time}, {datetime}), имя может задаваться в ручную, или генерироваться автоматически.
     На основании имен: Имя ПК + имя папки + дата-время.
-    Пример: ИмяПК-ИмяПапки-{datetime} создаст архив с именем workpc-documents-20230819-153000.rar
+    Пример: backup_{SRCfolder}_{computer}_{datetime} создаст архив с именем backup_documents_pcname_20230819-153000.rar
     Write-Verbose "Команда: $RarPath $rarArgs"
 
 .PARAMETER Keys
@@ -71,7 +71,7 @@ function Backup-WithRAR {
         [string]$ArchiveName = "backup_{SRCfolder}_{computer}_{datetime}",
 
         [Parameter(Mandatory = $false)]
-        [string]$Keys = "a -r -m5 -dh -ep1",
+        [string]$Keys = "a -t -r -m5 -dh -tl -rr1p -s -ep2",
 
         [Parameter(Mandatory = $false)]
         [ValidateSet("rar", "zip", "7z")]
