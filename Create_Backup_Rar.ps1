@@ -3,8 +3,9 @@
     Выполняет архивацию данных с помощью RAR
 
 .DESCRIPTION
-    Функция для автоматической архивации файлов и папок с использованием RAR.
+    Скрипт для автоматической архивации файлов и папок с использованием RAR.
     Поддерживает добавление даты/времени в имя архива, ведение лога и различные ключи архивации.
+    Может быть запущен самостоятельно или использован как функция в других скриптах.
 
 .PARAMETER RarPath
     Путь к исполняемому файлу RAR (по умолчанию: стандартный путь установки)
@@ -28,25 +29,32 @@
     Расширение архива (по умолчанию: "rar")
 
 .EXAMPLE
-    #Простой запуск
-    Backup-WithRAR -SRC "C:\test\backup1" -DST "C:\test\rar" -ArchiveName "DataBackup-{datetime}"
-
+    #Простой запуск .\Create_Backup_Rar.ps1 ключи по умолчанию
+    .\Create_Backup_Rar.ps1 -SRC "C:\test\backup2" -DST "C:\test\rar" -ArchiveName "Backup-{SRCfolder}_{computer}_{datetime}"
 .EXAMPLE
-    Backup-WithRAR -SRC "C:\Logs" -DST "\\server\backups" -ArchiveName "Logs" -Keys "a -r -m5 -dh -ep1"
-
+    #Простой запуск .\Create_Backup_Rar.ps1 ключи по умолчанию
+    .\Create_Backup_Rar.ps1 -SRC "C:\\test\\backup2" -DST "C:\\test\\rar" -ArchiveName "Backup-{SRCfolder}_{computer}_{datetime}" -Verbose
 .EXAMPLE
-    # С дополнительными плейсхолдерами
-    Backup-WithRAR -SRC "C:\Data" -DST "D:\Backups" -ArchiveName "Backup-{datetime}"
-
-.EXAMPLE
-    # С выбором формата ZIP
-    Backup-WithRAR -SRC "C:\Logs" -DST "E:\Archives" -ArchiveName "Logs-{date}" -ArchiveExtension "zip" -Verbose
-
+    # Использование из другого скрипта:
+    . .\Create_Backup_Rar.ps1  # точка перед именем файла — импорт функции
+    Backup-WithRAR -SRC "C:\Data" -DST "D:\Backups" -ArchiveName "Backup-{SRCfolder}_{computer}_{datetime}"
 .NOTES
     Автор: Иванов
     Версия: 2.0 (2025-08-19)
     Требуется: RAR установленный в системе
 #>
+# --- Параметры при запуске напрямую ---
+
+param(
+    [string]$SRC,
+    [string]$DST,
+    [string]$ArchiveName = "backup_{SRCfolder}_{computer}_{datetime}",
+    [string]$RarPath = "C:\Program Files\WinRAR\Rar.exe",
+    [string]$Keys = "a -t -r -m5 -dh -tl -rr1p -s -ep2",
+    [ValidateSet("rar","zip","7z")]
+    [string]$ArchiveExtension = "rar"
+)
+
 function Backup-WithRAR {
     [CmdletBinding()]
     param(
@@ -90,11 +98,11 @@ function Backup-WithRAR {
 
     # Подготовка плейсхолдеров
     $placeholders = @{
-        "{SRCfolder}" = (Split-Path -Leaf $SRC) -replace '[<>:"|?*]', '_'   # заменяем недопустимые символы на '_' имя исходного каталога
-        "{computer}"  = $env:COMPUTERNAME                                   # имя компьютера       
-        "{date}"      = (Get-Date -Format "yyyyMMdd")                       # 20250824
-        "{time}"      = (Get-Date -Format "HHmmss")                         # 153045
-        "{datetime}"  = (Get-Date -Format "yyyyMMdd-HHmmss")                # 20250824-153045
+        "{SRCfolder}" = (Split-Path -Leaf $SRC) -replace '[<>:"|?*]', '_'
+        "{computer}"  = $env:COMPUTERNAME
+        "{date}"      = (Get-Date -Format "yyyyMMdd")
+        "{time}"      = (Get-Date -Format "HHmmss")
+        "{datetime}"  = (Get-Date -Format "yyyyMMdd-HHmmss")
     }
 
     # Подстановка плейсхолдеров в имя архива
@@ -135,7 +143,6 @@ function Backup-WithRAR {
         $logPath = Join-Path $DST "$finalArchiveName.log.txt"
         $logErrPath = Join-Path $DST "$finalArchiveName.err.txt"
 
-        # Если имя архива полностью сжато до нуля, выдаём ошибку
         if ([string]::IsNullOrWhiteSpace($finalArchiveName)) {
             throw "Имя архива слишком длинное для указанного пути назначения. Измените папку или имя архива."
         }
@@ -157,17 +164,38 @@ function Backup-WithRAR {
 
     # Выполнение архивации
     try {
+        # Создаем временный файл для ошибок
+        $tempErrFile = [System.IO.Path]::GetTempFileName()
+        
         $processInfo = @{
-            FilePath              = $RarPath
-            ArgumentList          = $rarArgs
-            Wait                  = $true
-            PassThru              = $true
-            NoNewWindow           = $true
+            FilePath               = $RarPath
+            ArgumentList           = $rarArgs
+            Wait                   = $true
+            PassThru               = $true
+            NoNewWindow            = $true
             RedirectStandardOutput = $logPath
-            RedirectStandardError  = $logErrPath
+            RedirectStandardError  = $tempErrFile
         }
 
         $process = Start-Process @processInfo
+
+
+        # Проверяем, есть ли ошибки
+        $hasErrors = $process.ExitCode -ne 0
+        $errorContent = if (Test-Path $tempErrFile) { 
+            Get-Content $tempErrFile -Raw 
+        } else { 
+            $null 
+        }
+
+        # Если есть ошибки или содержимое в stderr, сохраняем лог ошибок
+        if ($hasErrors -or (-not [string]::IsNullOrWhiteSpace($errorContent))) {
+            Move-Item -Path $tempErrFile -Destination $logErrPath -Force
+            Write-Verbose "Создан лог ошибок: $logErrPath"
+        } else {
+            # Если ошибок нет, удаляем временный файл
+            Remove-Item $tempErrFile -Force -ErrorAction SilentlyContinue
+        }
 
         # Проверка кода возврата
         if ($process.ExitCode -eq 0) {
@@ -176,8 +204,8 @@ function Backup-WithRAR {
             Write-Host "Лог: $logPath"
 
             # Вывод размера архива
-            $archiveSize = (Get-Item $archivePath).Length / 1MB
-            if ($archiveSize -is [double] -and $archiveSize -ge 0) {
+            if (Test-Path $archivePath) {
+                $archiveSize = (Get-Item $archivePath).Length / 1MB
                 $sizeText = "Размер архива: {0:N2} МБ" -f $archiveSize
                 Write-Host $sizeText
             } else {
@@ -186,7 +214,9 @@ function Backup-WithRAR {
         }
         else {
             Write-Error "Архивация завершена с кодом ошибки: $($process.ExitCode)"
-            Write-Error "Полный лог находится по адресу: $logPath"
+            if (Test-Path $logErrPath) {
+                Write-Error "Лог ошибок: $logErrPath"
+            }
         }
 
         return $process.ExitCode
@@ -196,14 +226,45 @@ function Backup-WithRAR {
         return -1
     }
     finally {
-        # Удаление временного файла ошибок, если существует
+        # Удаление временного файла ошибок, если он остался
+        if (Test-Path $tempErrFile) {
+            Remove-Item $tempErrFile -Force -ErrorAction SilentlyContinue
+        }
+        
+        # Удаление старого временного файла ошибок, если существует
         if (Test-Path "RAR_errors.txt") {
             Remove-Item "RAR_errors.txt" -Force -ErrorAction SilentlyContinue
         }
     }
 }
 
-# Экспорт функции для использования в других скриптах
+# --- Экспорт функции для модуля ---
 if ($MyInvocation.ScriptName -like "*.psm1") {
     Export-ModuleMember -Function Backup-WithRAR
+}
+
+# --- Запуск напрямую ---
+# Упрощенная и более надежная проверка на прямой запуск
+if (($MyInvocation.InvocationName -eq '.') -or 
+    ($MyInvocation.MyCommand.Name -eq $MyInvocation.InvocationName) -or
+    (Test-Path -LiteralPath $MyInvocation.InvocationName -ErrorAction SilentlyContinue)) {
+    
+    # Если не указаны обязательные параметры, запрашиваем их
+    if (-not $SRC) { $SRC = Read-Host "Укажите путь к источнику (SRC)" }
+    if (-not $DST) { $DST = Read-Host "Укажите путь к папке назначения (DST)" }
+
+    # Создаем хэш-таблицу параметров для передачи в функцию
+    $params = @{
+        SRC = $SRC
+        DST = $DST
+    }
+
+    # Добавляем необязательные параметры, если они указаны
+    if ($PSBoundParameters.ContainsKey('ArchiveName')) { $params.ArchiveName = $ArchiveName }
+    if ($PSBoundParameters.ContainsKey('RarPath')) { $params.RarPath = $RarPath }
+    if ($PSBoundParameters.ContainsKey('Keys')) { $params.Keys = $Keys }
+    if ($PSBoundParameters.ContainsKey('ArchiveExtension')) { $params.ArchiveExtension = $ArchiveExtension }
+
+    # Вызываем функцию с параметрами
+    Backup-WithRAR @params
 }
