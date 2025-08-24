@@ -1,4 +1,4 @@
-<#
+<# file Send-Mail.ps1
 .SYNOPSIS
     Выполняет отправку писем внутри локальной корпоративной сети
 
@@ -107,8 +107,8 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$Body,
 
-    [Parameter(Mandatory = $true)]
-    [string]$SmtpServer,
+    [Parameter(Mandatory = $false)]
+    [string]$SmtpServer = "SmtpServer.domail.loc",
 
     [Parameter(Mandatory = $false)]
     [ValidateScript({
@@ -122,10 +122,6 @@ param(
 
     [Parameter(Mandatory = $false)]
     [string]$LogName = "MailLog-{datetime}",
-
-    [Parameter(Mandatory = $false)]
-    [ValidateRange(1, 365)]
-    [int]$MaxLogAge = 30,
 
     [Parameter(Mandatory = $false)]
     [System.Management.Automation.PSCredential]$Credential,

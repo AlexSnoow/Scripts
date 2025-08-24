@@ -1,4 +1,4 @@
-<#
+<# file Copy-Robocopy.ps1
 .SYNOPSIS
     Выполняет копирование данных с помощью программы Robocopy
 
@@ -24,23 +24,12 @@
 .PARAMETER Keys
     Ключи и команды для robocopy (по умолчанию: "/E /Z /COPYALL /R:2 /W:5 /NP /V")
 
-.PARAMETER MaxLogAge
-    Максимальный возраст логов в днях (автоочистка старых логов)
-
 .PARAMETER CheckFreeSpace
     Проверять свободное место перед копированием (в процентах)
 
 .EXAMPLE
-    Copy-Robocopy -SRC "C:\Source" -DST "\\Server\Backup" -LogName "Backup-{date}"
-    Копирование папки C:\Source на сервер \\Server\Backup с логом, содержащим дату
-
-.EXAMPLE
     Copy-Robocopy -SRC "D:\Data" -DST "E:\Backup" -Keys "/MIR /Z /R:3 /W:10" -LogName "Mirror-{datetime}"
     Зеркальное копирование с увеличенным количеством повторных попыток и интервалом ожидания
-
-.EXAMPLE
-    # Запуск скрипта напрямую с параметрами
-    .\Copy-Robocopy.ps1 -SRC "C:\Data" -DST "D:\Backup" -LogName "DataBackup-{datetime}" -CheckFreeSpace 20
 
 .EXAMPLE
     # Использование в планировщике заданий
@@ -68,25 +57,9 @@
     }
 
 .EXAMPLE
-    # Создание задания в планировщике через PowerShell
-    $action = New-ScheduledTaskAction -Execute "powershell.exe" `
-        -Argument "-ExecutionPolicy Bypass -File `"C:\Scripts\Copy-Robocopy.ps1`" -SRC `"C:\Data`" -DST `"\\Server\Backup`""
-    
-    $trigger = New-ScheduledTaskTrigger -Daily -At "02:00"
-    $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
-    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
-    
-    Register-ScheduledTask -Action $action -Trigger $trigger -TaskName "DailyRobocopyBackup" `
-        -Description "Ежедневное копирование с помощью Robocopy" -Principal $principal -Settings $settings
-
-.EXAMPLE
     # Использование как модуля
     Import-Module .\Copy-Robocopy.ps1
     Copy-Robocopy -SRC "C:\Websites" -DST "\\Server\Backup\Web" -Keys "/MIR /Z /R:3 /W:10"
-
-.EXAMPLE
-    # Использование псевдонима
-    robocopy-backup -SRC "C:\Logs" -DST "E:\Backup\Logs" -LogPath "C:\Logs\{date}"
 
 .NOTES
     Автор: Иванов
@@ -125,10 +98,6 @@ param(
     [string]$Keys = "/E /Z /COPYALL /R:2 /W:5 /NP /V",
 
     [Parameter(Mandatory = $false)]
-    [ValidateRange(0, 365)]
-    [int]$MaxLogAge = 30,
-
-    [Parameter(Mandatory = $false)]
     [ValidateRange(0, 100)]
     [int]$CheckFreeSpace = 10
 )
@@ -153,9 +122,6 @@ function Copy-Robocopy {
 
         [Parameter(Mandatory = $false)]
         [string]$Keys = "/E /Z /COPYALL /R:2 /W:5 /NP /V",
-
-        [Parameter(Mandatory = $false)]
-        [int]$MaxLogAge = 30,
 
         [Parameter(Mandatory = $false)]
         [int]$CheckFreeSpace = 10
@@ -186,23 +152,6 @@ function Copy-Robocopy {
         catch {
             Write-Error "Не удалось создать папку для логов: $($_.Exception.Message)"
             return -1
-        }
-    }
-
-    # Очистка старых логов
-    if ($MaxLogAge -gt 0) {
-        try {
-            $oldLogs = Get-ChildItem -Path $LogPath -Filter "*.log" | Where-Object {
-                $_.LastWriteTime -lt (Get-Date).AddDays(-$MaxLogAge)
-            }
-            
-            if ($oldLogs.Count -gt 0) {
-                Write-Verbose "Удаление старых логов ($($oldLogs.Count) файлов)"
-                $oldLogs | Remove-Item -Force -ErrorAction SilentlyContinue
-            }
-        }
-        catch {
-            Write-Warning "Не удалось очистить старые логи: $($_.Exception.Message)"
         }
     }
 

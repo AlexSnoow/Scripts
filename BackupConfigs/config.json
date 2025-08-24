@@ -1,0 +1,28 @@
+﻿[
+    {
+        "Enabled": true,
+        "Name": "Резервная копия 1",
+        "Create_Backup_Rar": true,
+        "Create_Backup_Rar_SRC": "C:\\test\\backup1",
+        "Create_Backup_Rar_DST": "C:\\test\\rar",
+        "Create_Backup_Rar_ArchiveName": "backup1-{datetime}",
+        "Create_Backup_Rar_Keys": "a -r -m5 -dh -ep1",
+        "Create_Backup_Rar_ArchiveExtension": "rar",
+        "Copy-Robocopy": true,
+        "Copy-Robocopy_SRC": "C:\\test\\rar",
+        "Copy-Robocopy_DST": "C:\\test\\copy",
+        "Copy-Robocopy_RobocopyPath": "C:\\Windows\\System32\\Robocopy.exe",
+        "Copy-Robocopy_LogName": "copy_log_{datetime}",
+        "Copy-Robocopy_LogPath": "C:\\test\\copy",
+        "Copy-Robocopy_Keys": "/MIR /Z /R:3 /W:10",
+        "Copy-Robocopy_CheckFreeSpace": false,
+        "Remove-OldFiles": true,
+        "Remove-OldFiles-Path": "C:\\test\\rar",
+        "Remove-OldFiles-DaysOld": "30",
+        "Remove-OldFiles-KeepCount": "5",
+        "Send-Mail": false,
+        "Send-Mail-From": "Fromadrres@domail.loc",
+        "Send-Mail-To": "toadrres@domail.loc",
+        "Send-Mail-Subject": "Резервная копия 1"
+    }
+]

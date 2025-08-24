@@ -1,4 +1,4 @@
-<#
+<# file Remove-OldFiles.ps1
 .SYNOPSIS
 ”правл€ет хранением файлов по сроку давности
 
