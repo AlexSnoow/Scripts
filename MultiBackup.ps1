@@ -1,287 +1,378 @@
 ﻿<# file MultiBackup.ps1
 .SYNOPSIS
-    Выполняет архивацию нескольких источников данных с помощью RAR
+    Выполняет пакетную архивацию нескольких источников данных с индивидуальными настройками
 
 .DESCRIPTION
-    Скрипт для пакетной архивации нескольких папок/файлов с индивидуальными настройками для каждого источника.
-    Использует файл конфигурации, в котором прописаны аргументы для других скриптов: Create_Backup_Rar.ps1, Remove-OldFiles.ps1, Copy-Robocopy.ps1, Send-Mail.ps1
+    Скрипт-оркестратор для выполнения цепочки задач резервного копирования:
+    1. Создание RAR-архивов через Create_Backup_Rar.ps1
+    2. Копирование через Copy-Robocopy.ps1
+    3. Очистка старых файлов через Remove-OldFiles.ps1
+    4. Отправка уведомлений через Send-Mail.ps1
 
 .PARAMETER ConfigPath
-    Путь к JSON-файлу с конфигурацией архивации (опционально)
+    Путь к JSON-файлу с конфигурацией задач (обязательный параметр).
 
 .EXAMPLE
-    # Используя встроенную конфигурацию
-    .\MultiBackup.ps1
-
-.EXAMPLE
-    # Используя внешний конфигурационный файл
-    .\MultiBackup.ps1 -ConfigPath "C:\my_config.json"
-.EXAMPLE
-    #Настройте планировщик заданий для автоматического запуска:
-    Program: powershell.exe
-    Arguments: -ExecutionPolicy Bypass -File "C:\Scripts\MultiBackup.ps1" -ConfigPath "C:\BackupConfigs\daily.json"
+    # Использование конфигурационного файла
+    .\MultiBackup.ps1 -ConfigPath "C:\BackupConfigs\daily.json"
 
 .NOTES
-    Автор: Иванов
-    Версия: 1.0 (2025-08-19)
+    Автор: Системный администратор
+    Версия: 2.1
+    Дата: $(Get-Date -Format "yyyy-MM-dd")
 #>
 
+[CmdletBinding()]
 param(
-    [Parameter(Mandatory = $false)]
+    [Parameter(Mandatory = $true)]
+    [ValidateScript({
+        if (-not (Test-Path $_ -PathType Leaf)) {
+            throw "Конфигурационный файл не существует: $_"
+        }
+        if ((Get-Item $_).Extension -ne ".json") {
+            throw "Файл конфигурации должен иметь расширение .json: $_"
+        }
+        $true
+    })]
     [string]$ConfigPath
 )
 
-# Импорт функции архивации
-try {
-    . .\Create_Backup_rar.ps1
-    Write-Host "Функция Backup-WithRAR успешно импортирована" -ForegroundColor Green
-}
-catch {
-    Write-Error "Не удалось импортировать функцию Backup-WithRAR: $($_.Exception.Message)"
-    exit 1
-}
+#region Инициализация
+# Текущая директория скрипта
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-# Определение конфигурации архивации
-$backupConfig = @(
-    @{
-        Name             = "Резервная копия веб-сайтов"
-        SRC              = "C:\Websites"
-        DST              = "D:\Backups\Web"
-        ArchiveName      = "Websites-{datetime}"
-        Keys             = "a -r -m5 -dh -ep1"
-        ArchiveExtension = "rar"
-        Enabled          = $true
-    },
-    @{
-        Name             = "Резервная копия баз данных"
-        SRC              = "C:\Databases"
-        DST              = "D:\Backups\DB"
-        ArchiveName      = "Databases-{date}"
-        Keys             = "a -r -m3 -dh -ep2"
-        ArchiveExtension = "rar"
-        Enabled          = $true
-    },
-    @{
-        Name             = "Резервная копия конфигураций"
-        SRC              = "C:\Configs"
-        DST              = "D:\Backups\Config"
-        ArchiveName      = "Configs-{date}"
-        Keys             = "a -r -m1"
-        ArchiveExtension = "rar"
-        Enabled          = $true
-    },
-    @{
-        Name             = "Резервная копия логов"
-        SRC              = "C:\Logs"
-        DST              = "D:\Backups\Logs"
-        ArchiveName      = "Logs-{date}"
-        Keys             = "a -r -m1 -ed"
-        ArchiveExtension = "rar"
-        Enabled          = $true
-    }
+# Импорт необходимых скриптов
+$ScriptsToImport = @(
+    "Create_Backup_Rar.ps1",
+    "Copy-Robocopy.ps1", 
+    "Remove-OldFiles.ps1",
+    "Send-Mail.ps1"
 )
 
-# Загрузка внешней конфигурации, если указана
-if ($ConfigPath -and (Test-Path $ConfigPath)) {
-    try {
-        $externalConfig = Get-Content $ConfigPath -Raw | ConvertFrom-Json
-        $backupConfig = $externalConfig
-        Write-Host "Загружена внешняя конфигурация из: $ConfigPath" -ForegroundColor Green
+foreach ($script in $ScriptsToImport) {
+    $scriptPath = Join-Path $ScriptDir $script
+    if (Test-Path $scriptPath) {
+        try {
+            . $scriptPath
+            Write-Verbose "Успешно импортирован скрипт: $script"
+        }
+        catch {
+            Write-Error "Ошибка импорта скрипта $script : $($_.Exception.Message)"
+            exit 1
+        }
     }
-    catch {
-        Write-Warning "Не удалось загрузить внешнюю конфигурацию. Используется встроенная."
+    else {
+        Write-Warning "Скрипт $script не найден. Некоторые функции будут недоступны."
     }
 }
+#endregion
 
-# Функция для проверки доступности источников
-function Test-BackupSources {
-    param($config)
+#region Загрузка конфигурации
+try {
+    Write-Verbose "Загрузка конфигурации из файла: $ConfigPath"
+    $configData = Get-Content $ConfigPath -Raw -ErrorAction Stop
+    $BackupConfig = $configData | ConvertFrom-Json -ErrorAction Stop
     
-    $results = @()
-    foreach ($job in $config) {
-        if (-not $job.Enabled) {
-            $results += @{
-                Name    = $job.Name
-                Status  = "Skipped"
-                Message = "Задание отключено в конфигурации"
+    # Проверка наличия хотя бы одной задачи
+    if ($BackupConfig.Count -eq 0) {
+        throw "Конфигурационный файл не содержит задач"
+    }
+    
+    # Проверка структуры конфигурации
+    $requiredProps = @("Enabled", "Name")
+    foreach ($task in $BackupConfig) {
+        foreach ($prop in $requiredProps) {
+            if (-not $task.PSObject.Properties.Name.Contains($prop)) {
+                throw "Задача '$($task.Name)' не содержит обязательное свойство: $prop"
             }
-            continue
         }
-        
-        $sourceExists = Test-Path $job.SRC
-        $destAccess = $true
-        
-        # Проверяем доступность папки назначения
-        if (-not (Test-Path $job.DST)) {
+    }
+}
+catch {
+    Write-Error "Ошибка загрузки конфигурации: $($_.Exception.Message)"
+    exit 1
+}
+#endregion
+
+#region Вспомогательные функции
+function Get-ParametersFromConfig {
+    param(
+        [PSCustomObject]$Config,
+        [string]$Prefix
+    )
+    
+    $params = @{}
+    $Config.PSObject.Properties | Where-Object {
+        $_.Name -like "$Prefix*" -and $_.Name -ne "${Prefix}Enabled"
+    } | ForEach-Object {
+        $paramName = $_.Name.Replace("${Prefix}_", "").Replace($Prefix, "")
+        $params[$paramName] = $_.Value
+    }
+    
+    return $params
+}
+
+function Invoke-BackupTask {
+    param(
+        [PSCustomObject]$TaskConfig
+    )
+    
+    $taskResult = @{
+        Name = $TaskConfig.Name
+        Steps = @()
+        StartTime = Get-Date
+        EndTime = $null
+        Success = $false
+        ErrorMessage = $null
+    }
+    
+    Write-Host "Выполнение задачи: $($TaskConfig.Name)" -ForegroundColor Cyan
+    
+    try {
+        # Шаг 1: Создание RAR-архива
+        if ($TaskConfig.Create_Backup_Rar -eq $true) {
+            Write-Host "  → Создание RAR-архива" -ForegroundColor Yellow
+            $rarParams = Get-ParametersFromConfig -Config $TaskConfig -Prefix "Create_Backup_Rar"
+            
+            $stepResult = @{
+                Name = "Create_Backup_Rar"
+                StartTime = Get-Date
+            }
+            
             try {
-                New-Item -ItemType Directory -Path $job.DST -Force -ErrorAction Stop | Out-Null
+                # Вызов функции из импортированного скрипта
+                $result = Backup-WithRAR @rarParams
+                $stepResult.Success = ($result -eq 0)
+                $stepResult.Message = if ($result -eq 0) { "Успешно" } else { "Код ошибки: $result" }
+                $stepResult.ExitCode = $result
             }
             catch {
-                $destAccess = $false
+                $stepResult.Success = $false
+                $stepResult.Message = $_.Exception.Message
+            }
+            
+            $stepResult.EndTime = Get-Date
+            $taskResult.Steps += $stepResult
+            
+            if (-not $stepResult.Success) {
+                throw "Ошибка создания архива: $($stepResult.Message)"
             }
         }
         
-        $results += @{
-            Name              = $job.Name
-            SourceExists      = $sourceExists
-            DestinationAccess = $destAccess
-            Status            = if ($sourceExists -and $destAccess) { "Ready" } else { "Error" }
-            Message           = if (-not $sourceExists) { "Источник не существует: $($job.SRC)" }
-            elseif (-not $destAccess) { "Нет доступа к папке назначения: $($job.DST)" }
-            else { "Готов к архивации" }
+        # Шаг 2: Копирование Robocopy
+        if ($TaskConfig.'Copy-Robocopy' -eq $true) {
+            Write-Host "  → Копирование с помощью Robocopy" -ForegroundColor Yellow
+            $robocopyParams = Get-ParametersFromConfig -Config $TaskConfig -Prefix "Copy-Robocopy"
+            
+            $stepResult = @{
+                Name = "Copy-Robocopy"
+                StartTime = Get-Date
+            }
+            
+            try {
+                # Вызов функции из импортированного скрипта
+                Copy-Robocopy @robocopyParams
+                $stepResult.Success = $true
+                $stepResult.Message = "Успешно"
+            }
+            catch {
+                $stepResult.Success = $false
+                $stepResult.Message = $_.Exception.Message
+            }
+            
+            $stepResult.EndTime = Get-Date
+            $taskResult.Steps += $stepResult
+            
+            if (-not $stepResult.Success) {
+                throw "Ошибка копирования: $($stepResult.Message)"
+            }
         }
+        
+        # Шаг 3: Очистка старых файлов
+        if ($TaskConfig.Remove-OldFiles -eq $true) {
+            Write-Host "  → Очистка старых файлов" -ForegroundColor Yellow
+            $cleanupParams = Get-ParametersFromConfig -Config $TaskConfig -Prefix "Remove-OldFiles"
+            
+            $stepResult = @{
+                Name = "Remove-OldFiles"
+                StartTime = Get-Date
+            }
+            
+            try {
+                # Вызов функции из импортированного скрипта
+                Remove-OldFiles @cleanupParams
+                $stepResult.Success = $true
+                $stepResult.Message = "Успешно"
+            }
+            catch {
+                $stepResult.Success = $false
+                $stepResult.Message = $_.Exception.Message
+            }
+            
+            $stepResult.EndTime = Get-Date
+            $taskResult.Steps += $stepResult
+            
+            if (-not $stepResult.Success) {
+                throw "Ошибка очистки файлов: $($stepResult.Message)"
+            }
+        }
+        
+        # Шаг 4: Отправка email
+        if ($TaskConfig.'Send-Mail' -eq $true) {
+            Write-Host "  → Отправка уведомления" -ForegroundColor Yellow
+            $mailParams = Get-ParametersFromConfig -Config $TaskConfig -Prefix "Send-Mail"
+            
+            $stepResult = @{
+                Name = "Send-Mail"
+                StartTime = Get-Date
+            }
+            
+            try {
+                # Вызов функции из импортированного скрипта
+                Send-Mail @mailParams
+                $stepResult.Success = $true
+                $stepResult.Message = "Успешно"
+            }
+            catch {
+                $stepResult.Success = $false
+                $stepResult.Message = $_.Exception.Message
+            }
+            
+            $stepResult.EndTime = Get-Date
+            $taskResult.Steps += $stepResult
+        }
+        
+        $taskResult.Success = $true
+        Write-Host "Задача завершена успешно: $($TaskConfig.Name)" -ForegroundColor Green
+    }
+    catch {
+        $taskResult.Success = $false
+        $taskResult.ErrorMessage = $_.Exception.Message
+        Write-Host "Ошибка выполнения задачи: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    finally {
+        $taskResult.EndTime = Get-Date
     }
     
-    return $results
+    return $taskResult
 }
+#endregion
 
-# Основной процесс архивации
-Write-Host "=== МНОГОПОТОЧНАЯ АРХИВАЦИЯ ===" -ForegroundColor Cyan
-Write-Host "Начало: $(Get-Date -Format 'dd.MM.yyyy HH:mm:ss')"
-Write-Host "Количество заданий: $(($backupConfig | Where-Object { $_.Enabled }).Count)"
+#region Основной процесс
+$startTime = Get-Date
+Write-Host "=== ЗАПУСК MULTIBACKUP ===" -ForegroundColor Green
+Write-Host "Время начала: $(Get-Date -Format 'dd.MM.yyyy HH:mm:ss')" -ForegroundColor White
+Write-Host "Конфигурационный файл: $ConfigPath" -ForegroundColor White
+Write-Host "Количество задач в конфигурации: $($BackupConfig.Count)" -ForegroundColor White
 Write-Host ""
 
-# Проверка источников
-Write-Host "Проверка источников данных..." -ForegroundColor Yellow
-$checkResults = Test-BackupSources $backupConfig
+# Фильтруем только включенные задачи
+$enabledTasks = $BackupConfig | Where-Object { $_.Enabled -eq $true }
+Write-Host "Активных задач: $($enabledTasks.Count)" -ForegroundColor White
 
-foreach ($result in $checkResults) {
-    $color = if ($result.Status -eq "Ready") { "Green" }
-    elseif ($result.Status -eq "Skipped") { "Gray" }
-    else { "Red" }
-    
-    Write-Host "[$($result.Status)] $($result.Name): $($result.Message)" -ForegroundColor $color
+if ($enabledTasks.Count -eq 0) {
+    Write-Host "Нет активных задач для выполнения. Завершение работы." -ForegroundColor Yellow
+    exit 0
 }
 
-# Запрос подтверждения, если есть ошибки
-$errorCount = ($checkResults | Where-Object { $_.Status -eq "Error" }).Count
-if ($errorCount -gt 0) {
-    $confirmation = Read-Host "Обнаружены проблемы с $errorCount источник(ами). Продолжить? (y/n)"
-    if ($confirmation -ne 'y') {
-        Write-Host "Архивация отменена пользователем" -ForegroundColor Yellow
-        exit 0
-    }
-}
-
-# Выполнение архивации
 $results = @()
 $successCount = 0
 $failCount = 0
 
-foreach ($job in $backupConfig) {
-    if (-not $job.Enabled) {
-        Write-Host "Пропускаем отключенное задание: $($job.Name)" -ForegroundColor Gray
-        continue
+foreach ($task in $enabledTasks) {
+    $result = Invoke-BackupTask -TaskConfig $task
+    $results += $result
+    
+    if ($result.Success) {
+        $successCount++
+    }
+    else {
+        $failCount++
     }
     
     Write-Host ""
-    Write-Host "Обрабатывается: $($job.Name)" -ForegroundColor Cyan
-    Write-Host "Источник: $($job.SRC)"
-    Write-Host "Назначение: $($job.DST)"
-    
-    try {
-        # Вызов функции архивации
-        $result = Backup-WithRAR @job
-        
-        $status = if ($result -eq 0) { 
-            $successCount++
-            "Success" 
-        }
-        else { 
-            $failCount++
-            "Failed" 
-        }
-        
-        $results += @{
-            Name      = $job.Name
-            Status    = $status
-            ExitCode  = $result
-            Timestamp = Get-Date
-        }
-        
-        Write-Host "Результат: $status (Код: $result)" -ForegroundColor $(if ($result -eq 0) { "Green" } else { "Red" })
-    }
-    catch {
-        $failCount++
-        $results += @{
-            Name         = $job.Name
-            Status       = "Error"
-            ExitCode     = -1
-            ErrorMessage = $_.Exception.Message
-            Timestamp    = Get-Date
-        }
-        Write-Host "Ошибка: $($_.Exception.Message)" -ForegroundColor Red
-    }
 }
+#endregion
 
-# Формирование отчета
-Write-Host ""
-Write-Host "=== РЕЗУЛЬТАТЫ АРХИВАЦИИ ===" -ForegroundColor Cyan
-Write-Host "Завершено: $(Get-Date -Format 'dd.MM.yyyy HH:mm:ss')"
-Write-Host "Успешно: $successCount" -ForegroundColor Green
-Write-Host "С ошибками: $failCount" -ForegroundColor $(if ($failCount -eq 0) { "Green" } else { "Red" })
-Write-Host ""
+#region Формирование отчета
+Write-Host "=== РЕЗУЛЬТАТЫ ВЫПОЛНЕНИЯ ===" -ForegroundColor Cyan
+Write-Host "Успешных задач: $successCount" -ForegroundColor Green
+Write-Host "Неудачных задач: $failCount" -ForegroundColor $(if ($failCount -eq 0) { "Green" } else { "Red" })
+Write-Host "Общее время выполнения: $((Get-Date).Subtract($startTime).ToString('hh\:mm\:ss'))"
 
-if ($failCount -gt 0) {
-    Write-Host "Задания с ошибками:" -ForegroundColor Red
-    $results | Where-Object { $_.Status -ne "Success" } | ForEach-Object {
-        Write-Host "  - $($_.Name): $($_.Status)" -ForegroundColor Red
-        if ($_.ErrorMessage) {
-            Write-Host "    Ошибка: $($_.ErrorMessage)" -ForegroundColor Red
-        }
+# Детальный отчет по задачам
+foreach ($result in $results) {
+    $color = if ($result.Success) { "Green" } else { "Red" }
+    Write-Host "Задача: $($result.Name) - Status: $(if ($result.Success) {'Success'} else {'Failed'})" -ForegroundColor $color
+    
+    if (-not $result.Success) {
+        Write-Host "  Ошибка: $($result.ErrorMessage)" -ForegroundColor Red
     }
+    
+    foreach ($step in $result.Steps) {
+        $stepColor = if ($step.Success) { "Green" } else { "Red" }
+        Write-Host "  → $($step.Name): $(if ($step.Success) {'Успешно'} else {'Ошибка'}) - $($step.Message)" -ForegroundColor $stepColor
+    }
+    Write-Host ""
 }
 
 # Сохранение отчета в файл
-$reportPath = "D:\Backups\backup_report_$(Get-Date -Format 'yyyyMMdd_HHmmss').html"
+$reportDir = Join-Path $ScriptDir "Reports"
+if (-not (Test-Path $reportDir)) {
+    New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
+}
+
+$reportPath = Join-Path $reportDir "backup_report_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt"
 try {
-    $htmlReport = @"
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Отчет архивации</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .success { color: green; }
-        .failed { color: red; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-    </style>
-</head>
-<body>
-    <h1>Отчет архивации</h1>
-    <p>Дата: $(Get-Date -Format 'dd.MM.yyyy HH:mm:ss')</p>
-    <p>Успешно: $successCount</p>
-    <p>С ошибками: $failCount</p>
-    <table>
-        <tr><th>Задание</th><th>Статус</th><th>Код выхода</th><th>Время</th></tr>
+    $reportContent = @"
+Отчет выполнения MultiBackup
+Время формирования: $(Get-Date -Format 'dd.MM.yyyy HH:mm:ss')
+Конфигурационный файл: $ConfigPath
+Общее время выполнения: $((Get-Date).Subtract($startTime).ToString('hh\:mm\:ss'))
+Успешных задач: $successCount
+Неудачных задач: $failCount
+
+Детализация:
 "@
 
     foreach ($result in $results) {
-        $statusClass = if ($result.Status -eq "Success") { "success" } else { "failed" }
-        $htmlReport += "<tr><td>$($result.Name)</td><td class='$statusClass'>$($result.Status)</td><td>$($result.ExitCode)</td><td>$($result.Timestamp)</td></tr>"
-    }
+        $status = if ($result.Success) { "УСПЕХ" } else { "ОШИБКА" }
+        $reportContent += @"
 
-    $htmlReport += @"
-    </table>
-</body>
-</html>
+ЗАДАЧА: $($result.Name)
+СТАТУС: $status
+ВРЕМЯ НАЧАЛА: $($result.StartTime)
+ВРЕМЯ ЗАВЕРШЕНИЯ: $($result.EndTime)
 "@
-
-    $htmlReport | Out-File -FilePath $reportPath -Encoding UTF8
-    Write-Host "Отчет сохранен: $reportPath" -ForegroundColor Green
+        
+        if (-not $result.Success -and $result.ErrorMessage) {
+            $reportContent += @"
+ОШИБКА: $($result.ErrorMessage)
+"@
+        }
+        
+        foreach ($step in $result.Steps) {
+            $stepStatus = if ($step.Success) { "Успешно" } else { "Ошибка" }
+            $reportContent += @"
+  - $($step.Name): $stepStatus ($($step.Message))
+"@
+        }
+    }
+    
+    $reportContent | Out-File -FilePath $reportPath -Encoding UTF8
+    Write-Host "Подробный отчет сохранен: $reportPath" -ForegroundColor Green
 }
 catch {
     Write-Warning "Не удалось сохранить отчет: $($_.Exception.Message)"
 }
+#endregion
 
-# Завершение работы
+# Завершение
 if ($failCount -eq 0) {
-    Write-Host "Все задания выполнены успешно!" -ForegroundColor Green
+    Write-Host "Все задачи выполнены успешно!" -ForegroundColor Green
     exit 0
 }
 else {
-    Write-Host "Некоторые задания завершились с ошибками" -ForegroundColor Red
+    Write-Host "Некоторые задачи завершились с ошибками" -ForegroundColor Red
     exit 1
 }
