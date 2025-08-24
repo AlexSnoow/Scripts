@@ -72,7 +72,7 @@ function Backup-WithRAR {
                 if ($_ -match '[<>:|"?*]') { throw "Имя архива содержит недопустимые символы" }
                 $true
             })]
-        [string]$ArchiveName = "backup",
+        [string]$ArchiveName = "backup_{SRCfolder}_{computer}_{datetime}",
 
         [Parameter(Mandatory = $false)]
         [string]$Keys = "a -r -m3 -dh -ep1",
@@ -100,9 +100,6 @@ function Backup-WithRAR {
     "{time}"        = (Get-Date -Format "HHmmss")         # 153045
     "{datetime}"    = (Get-Date -Format "yyyyMMdd-HHmmss")# 20250824-153045
     }
-
-    # Пример шаблона (как будто задан пользователем в параметре ArchiveName)
-    $ArchiveName = "backup_{SRCfolder}_{computer}_{datetime}"
 
     # Проходим по всем ключам словаря и заменяем в строке
     $finalArchiveName = $ArchiveName
