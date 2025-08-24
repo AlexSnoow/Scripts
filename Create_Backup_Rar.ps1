@@ -67,15 +67,11 @@ function Backup-WithRAR {
         [Parameter(Mandatory = $true)]
         [string]$DST,
 
-        [Parameter(Mandatory = $true)]
-        [ValidateScript({
-                if ($_ -match '[<>:|"?*]') { throw "Имя архива содержит недопустимые символы" }
-                $true
-            })]
+        [Parameter(Mandatory = $false)]
         [string]$ArchiveName = "backup_{SRCfolder}_{computer}_{datetime}",
 
         [Parameter(Mandatory = $false)]
-        [string]$Keys = "a -r -m3 -dh -ep1",
+        [string]$Keys = "a -r -m5 -dh -ep1",
 
         [Parameter(Mandatory = $false)]
         [ValidateSet("rar", "zip", "7z")]
@@ -92,35 +88,58 @@ function Backup-WithRAR {
         New-Item -ItemType Directory -Path $DST -Force | Out-Null
     }
 
-    # Замена плейсхолдеров
+    # Подготовка плейсхолдеров
     $placeholders = @{
-    "{SRCfolder}"   = Split-Path -Leaf $SRC               # имя исходного каталога
-    "{computer}"    = $env:COMPUTERNAME                   # имя компьютера
-    "{date}"        = (Get-Date -Format "yyyyMMdd")       # 20250824
-    "{time}"        = (Get-Date -Format "HHmmss")         # 153045
-    "{datetime}"    = (Get-Date -Format "yyyyMMdd-HHmmss")# 20250824-153045
+        "{SRCfolder}" = (Split-Path -Leaf $SRC) -replace '[<>:"|?*]', '_'   # заменяем недопустимые символы на '_' имя исходного каталога
+        "{computer}"  = $env:COMPUTERNAME                                   # имя компьютера       
+        "{date}"      = (Get-Date -Format "yyyyMMdd")                       # 20250824
+        "{time}"      = (Get-Date -Format "HHmmss")                         # 153045
+        "{datetime}"  = (Get-Date -Format "yyyyMMdd-HHmmss")                # 20250824-153045
     }
 
-    # Проходим по всем ключам словаря и заменяем в строке
+    # Подстановка плейсхолдеров в имя архива
     $finalArchiveName = $ArchiveName
     foreach ($ph in $placeholders.Keys) {
         $finalArchiveName = $finalArchiveName -replace [regex]::Escape($ph), $placeholders[$ph]
     }
-    # $computerString = $env:COMPUTERNAME
-    # $dateString = Get-Date -Format "yyyyMMdd"
-    # $timeString = Get-Date -Format "HHmmss"
-    # $dateTimeString = Get-Date -Format "yyyyMMdd-HHmmss"
-    
-    # $finalArchiveName = $ArchiveName `
-    #     -replace "{computer}", $computerString `
-    #     -replace "{date}", $dateString `
-    #     -replace "{time}", $timeString `
-    #     -replace "{datetime}", $dateTimeString
+
+    # Обрезка пробелов и служебных символов в конце
+    $finalArchiveName = $finalArchiveName.Trim().TrimEnd('.', ' ', '-', '_')
+
+    # Проверка итогового имени на недопустимые символы
+    $invalidChars = [IO.Path]::GetInvalidFileNameChars()
+    $invalidPattern = '[' + [regex]::Escape(($invalidChars -join '')) + ']'
+    if ($finalArchiveName -match $invalidPattern) {
+        throw "Итоговое имя архива содержит недопустимые символы: '$finalArchiveName'. Измените имя архива или папку источника."
+    }
+
+    # Проверка на зарезервированные имена Windows
+    $reserved = 'CON','PRN','AUX','NUL','COM1','COM2','COM3','COM4','COM5','COM6','COM7','COM8','COM9','LPT1','LPT2','LPT3','LPT4','LPT5','LPT6','LPT7','LPT8','LPT9'
+    if ($reserved -contains $finalArchiveName.ToUpperInvariant()) {
+        throw "Итоговое имя архива зарезервировано системой: '$finalArchiveName'. Измените имя архива."
+    }
 
     # Формирование полных путей
     $archivePath = Join-Path $DST "$finalArchiveName.$ArchiveExtension"
     $logPath = Join-Path $DST "$finalArchiveName.log.txt"
     $logErrPath = Join-Path $DST "$finalArchiveName.err.txt"
+
+    # Ограничение длины пути (для Windows MAX_PATH)
+    $maxPathLen = 250
+    while ($archivePath.Length -gt $maxPathLen -or $logPath.Length -gt $maxPathLen -or $logErrPath.Length -gt $maxPathLen) {
+        Write-Verbose "Путь слишком длинный. Усечём имя архива для корректной работы."
+        # Укорачиваем имя архива на 5 символов
+        $finalArchiveName = $finalArchiveName.Substring(0, [Math]::Max(0, $finalArchiveName.Length - 5)).TrimEnd('.', ' ', '-', '_')
+        # Пересоздаём пути
+        $archivePath = Join-Path $DST "$finalArchiveName.$ArchiveExtension"
+        $logPath = Join-Path $DST "$finalArchiveName.log.txt"
+        $logErrPath = Join-Path $DST "$finalArchiveName.err.txt"
+
+        # Если имя архива полностью сжато до нуля, выдаём ошибку
+        if ([string]::IsNullOrWhiteSpace($finalArchiveName)) {
+            throw "Имя архива слишком длинное для указанного пути назначения. Измените папку или имя архива."
+        }
+    }
 
     # Экранирование путей с пробелами
     $escapedArchivePath = '"{0}"' -f $archivePath
