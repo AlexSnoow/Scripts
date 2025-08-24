@@ -67,41 +67,6 @@
     Требуется: Windows (встроенный Robocopy)
 #>
 
-[CmdletBinding()]
-param(
-    [Parameter(Mandatory = $true)]
-    [ValidateScript({
-        if (-not (Test-Path $_)) { throw "Источник не существует: $_" }
-        $true
-    })]
-    [string]$SRC,
-
-    [Parameter(Mandatory = $true)]
-    [string]$DST,
-
-    [Parameter(Mandatory = $false)]
-    [ValidateScript({
-        if (-not (Get-Command $_ -ErrorAction SilentlyContinue)) { 
-            throw "Robocopy не найден по указанному пути: $_" 
-        }
-        $true
-    })]
-    [string]$RobocopyPath = "robocopy.exe",
-
-    [Parameter(Mandatory = $false)]
-    [string]$LogName = "RobocopyLog-{datetime}",
-
-    [Parameter(Mandatory = $false)]
-    [string]$LogPath = "C:\Logs\Robocopy",
-
-    [Parameter(Mandatory = $false)]
-    [string]$Keys = "/E /Z /COPYALL /R:2 /W:5 /NP /V",
-
-    [Parameter(Mandatory = $false)]
-    [ValidateRange(0, 100)]
-    [int]$CheckFreeSpace = 10
-)
-
 function Copy-Robocopy {
     [CmdletBinding()]
     param(
@@ -271,28 +236,19 @@ function Copy-Robocopy {
 }
 
 # Если скрипт запущен напрямую (не импортирован как модуль)
-if ($MyInvocation.InvocationName -ne '.') {
-    # Обработка параметров командной строки
-    $source = $SRC
-    $destination = $DST
+if ($MyInvocation.InvocationName -eq $MyInvocation.ScriptName) {
+    param(
+        [string]$SRC,
+        [string]$DST
+    )
+    if (-not $SRC) { $SRC = Read-Host "Укажите путь к источнику (SRC)" }
+    if (-not $DST) { $DST = Read-Host "Укажите путь к папке назначения (DST)" }
     
-    # Создание папки назначения, если не существует
-    if (-not (Test-Path $destination)) {
-        try {
-            New-Item -ItemType Directory -Path $destination -Force -ErrorAction Stop | Out-Null
-            Write-Host "Создана папка назначения: $destination" -ForegroundColor Yellow
-        }
-        catch {
-            Write-Error "Не удалось создать папку назначения: $($_.Exception.Message)"
-            exit 1
-        }
+    $params = @{
+        SRC = $SRC
+        DST = $DST
     }
-    
-    # Запуск копирования
-    $result = Copy-Robocopy @PSBoundParameters
-    
-    # Завершение с соответствующим кодом выхода
-    exit $result
+    Copy-Robocopy @params
 }
 else {
     # Экспорт функции для использования в других скриптах
