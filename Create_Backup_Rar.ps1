@@ -40,7 +40,7 @@
     Backup-WithRAR -SRC "C:\Data" -DST "D:\Backups" -ArchiveName "Backup-{SRCfolder}_{computer}_{datetime}"
 .NOTES
     Автор: Иванов
-    Версия: 2.0 (2025-08-19)
+    Версия: 3.0 (2025-08-24)
     Требуется: RAR установленный в системе
 #>
 # --- Параметры при запуске напрямую ---
@@ -166,7 +166,7 @@ function Backup-WithRAR {
     try {
         # Создаем временный файл для ошибок
         $tempErrFile = [System.IO.Path]::GetTempFileName()
-        
+
         $processInfo = @{
             FilePath               = $RarPath
             ArgumentList           = $rarArgs
