@@ -126,11 +126,13 @@ function Invoke-BackupTask {
         ErrorMessage = $null
     }
     
+    Write-Host "Параметры для Backup-WithRAR: $rarParams" -ForegroundColor Yellow
+
     Write-Host "Выполнение задачи: $($TaskConfig.Name)" -ForegroundColor Cyan
     
     try {
         # Шаг 1: Создание RAR-архива
-        if ($TaskConfig.Create_Backup_Rar -eq $true) {
+        if ($TaskConfig["Create_Backup_Rar"] -eq $true) {
             Write-Host "  → Создание RAR-архива" -ForegroundColor Yellow
             $rarParams = Get-ParametersFromConfig -Config $TaskConfig -Prefix "Create_Backup_Rar"
             
@@ -160,7 +162,7 @@ function Invoke-BackupTask {
         }
         
         # Шаг 2: Копирование Robocopy
-        if ($TaskConfig.'Copy-Robocopy' -eq $true) {
+        if ($TaskConfig["Copy-Robocopy"] -eq $true) {
             Write-Host "  → Копирование с помощью Robocopy" -ForegroundColor Yellow
             $robocopyParams = Get-ParametersFromConfig -Config $TaskConfig -Prefix "Copy-Robocopy"
             
@@ -189,7 +191,7 @@ function Invoke-BackupTask {
         }
         
         # Шаг 3: Очистка старых файлов
-        if ($TaskConfig.Remove-OldFiles -eq $true) {
+        if ($TaskConfig["Remove-OldFiles"] -eq $true) {
             Write-Host "  → Очистка старых файлов" -ForegroundColor Yellow
             $cleanupParams = Get-ParametersFromConfig -Config $TaskConfig -Prefix "Remove-OldFiles"
             
@@ -218,7 +220,7 @@ function Invoke-BackupTask {
         }
         
         # Шаг 4: Отправка email
-        if ($TaskConfig.'Send-Mail' -eq $true) {
+        if ($TaskConfig["Send-Mail"] -eq $true) {
             Write-Host "  → Отправка уведомления" -ForegroundColor Yellow
             $mailParams = Get-ParametersFromConfig -Config $TaskConfig -Prefix "Send-Mail"
             
