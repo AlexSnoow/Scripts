@@ -72,7 +72,6 @@ function Backup-WithRAR {
                 if ($_ -match '[<>:|"?*]') { throw "Имя архива содержит недопустимые символы" }
                 $true
             })]
-        [string]$ArchiveName
         [string]$ArchiveName = "backup",
 
         [Parameter(Mandatory = $false)]
@@ -91,13 +90,6 @@ function Backup-WithRAR {
     if (-not (Test-Path $DST)) {
         Write-Verbose "Создание папки назначения: $DST"
         New-Item -ItemType Directory -Path $DST -Force | Out-Null
-    }
-
-    # Проверка доступности места на диске
-    $srcSize = (Get-ChildItem $SRC -Recurse -File | Measure-Object Length -Sum).Sum
-    $dstFreeSpace = (Get-PSDrive -Name (Split-Path $DST -Qualifier).TrimEnd(':')).Free
-    if ($srcSize -gt $dstFreeSpace * 0.9) {
-        Write-Warning "Мало свободного места в папке назначения. Возможны ошибки архивации."
     }
 
     # Замена плейсхолдеров
