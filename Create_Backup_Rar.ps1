@@ -37,7 +37,7 @@
 .EXAMPLE
     # Использование из другого скрипта:
     . .\Create_Backup_Rar.ps1  # точка перед именем файла — импорт функции
-    Backup-WithRAR -SRC "C:\Data" -DST "D:\Backups" -ArchiveName "Backup-{SRCfolder}_{computer}_{datetime}"
+    BackupWithRAR -SRC "C:\Data" -DST "D:\Backups" -ArchiveName "Backup-{SRCfolder}_{computer}_{datetime}"
 .NOTES
     Автор: Иванов
     Версия: 3.0 (2025-08-24)
@@ -55,7 +55,7 @@
 #     [string]$ArchiveExtension = "rar"
 # )
 
-function Backup-WithRAR {
+function BackupWithRAR {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
@@ -240,7 +240,7 @@ function Backup-WithRAR {
 
 # --- Экспорт функции для модуля ---
 if ($MyInvocation.ScriptName -like "*.psm1") {
-    Export-ModuleMember -Function Backup-WithRAR
+    Export-ModuleMember -Function BackupWithRAR
 }
 
 # --- Запуск напрямую ---
@@ -266,5 +266,5 @@ if (($MyInvocation.InvocationName -eq '.') -or
     if ($PSBoundParameters.ContainsKey('ArchiveExtension')) { $params.ArchiveExtension = $ArchiveExtension }
 
     # Вызываем функцию с параметрами
-    Backup-WithRAR @params
+    BackupWithRAR @params
 }

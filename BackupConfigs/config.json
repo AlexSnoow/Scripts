@@ -2,18 +2,18 @@
     {
         "Enabled": true,
         "Name": "Резервная копия 1",
-        "BackupRar": {
+        "BackupWithRAR": {
             "Enabled": true,
-            "Source": "C:\\test\\backup1",
-            "Destination": "C:\\test\\rar",
+            "SourcePath": "C:\\test\\backup1",
+            "DestinationPath": "C:\\test\\rar",
             "ArchiveName": "{SRCfolder}_{computer}_{datetime}",
             "Keys": "a -t -r -m5 -dh -tl -rr1p -s -ep2",
-            "Extension": "rar"
+            "ArchiveExtension": "rar"
         },
         "Copy": {
             "Enabled": false,
-            "Source": "C:\\test\\rar",
-            "Destination": "C:\\test\\copy",
+            "SourcePath": "C:\\test\\rar",
+            "DestinationPath": "C:\\test\\copy",
             "LogName": "copy_log_{datetime}",
             "LogPath": "C:\\test\\copy",
             "Keys": "/MIR /Z /R:3 /W:10",
@@ -21,7 +21,7 @@
         },
         "RemoveOldFiles": {
             "Enabled": false,
-            "Path": "C:\\test\\rar",
+            "SourcePath": "C:\\test\\rar",
             "DaysOld": 30,
             "KeepCount": 5
         },
@@ -35,18 +35,18 @@
     {
         "Enabled": true,
         "Name": "Резервная копия 2",
-        "BackupRar": {
+        "BackupWithRAR": {
             "Enabled": true,
-            "Source": "C:\\test\\backup2",
-            "Destination": "C:\\test\\rar",
+            "SourcePath": "C:\\test\\backup2",
+            "DestinationPath": "C:\\test\\rar",
             "ArchiveName": "{SRCfolder}_{computer}_{datetime}",
             "Keys": "a -t -r -m5 -dh -tl -rr1p -s -ep2",
-            "Extension": "rar"
+            "ArchiveExtension": "rar"
         },
         "Copy": {
             "Enabled": false,
-            "Source": "C:\\test\\rar",
-            "Destination": "C:\\test\\copy",
+            "SourcePath": "C:\\test\\rar",
+            "DestinationPath": "C:\\test\\copy",
             "LogName": "copy_log_{datetime}",
             "LogPath": "C:\\test\\copy",
             "Keys": "/MIR /Z /R:3 /W:10",
@@ -54,7 +54,7 @@
         },
         "RemoveOldFiles": {
             "Enabled": false,
-            "Path": "C:\\test\\rar",
+            "SourcePath": "C:\\test\\rar",
             "DaysOld": 30,
             "KeepCount": 5
         },
