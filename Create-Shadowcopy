@@ -1,0 +1,15 @@
+@echo off
+setlocal
+
+echo Создание теневой копии тома C:...
+for /f "tokens=2 delims= " %%i in ('vssadmin create shadow /for=C: 2^>NUL ^| find "Идентификатор теневой копии"') do set SHADOW_ID=%%i
+
+if "%SHADOW_ID%"=="" (
+    echo %DATE% %TIME%: Ошибка создания теневой копии. >> "C:\BackupLogs\shadow_errors.log"
+    exit /b 1
+)
+
+echo Теневая копия создана: %SHADOW_ID%
+echo %SHADOW_ID% > "C:\BackupConfigs\last_shadow_id.txt"
+
+endlocal
