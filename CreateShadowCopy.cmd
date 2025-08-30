@@ -39,12 +39,14 @@ type "!TEMP_OUTPUT!" >> "!Log!"
 echo [DEBUG] Вывод команды WMIC:
 type "!TEMP_OUTPUT!"
 
-REM Парсинг вывода WMIC
+REM Парсинг вывода WMIC - ИСПРАВЛЕННАЯ ВЕРСИЯ
 set SHADOW_ID=
-for /f "usebackq tokens=2 delims={}" %%i in (`type "!TEMP_OUTPUT!" ^| find "ShadowID"`) do (
+for /f "tokens=2 delims==" %%i in ('type "!TEMP_OUTPUT!" ^| find "ShadowID"') do (
     set "SHADOW_ID=%%i"
-    set "SHADOW_ID=!SHADOW_ID:~0,-1!"
-    set "SHADOW_ID={!SHADOW_ID!}"
+    REM Удаляем лишние символы: пробелы, кавычки, точку с запятой
+    set "SHADOW_ID=!SHADOW_ID: =!"
+    set "SHADOW_ID=!SHADOW_ID:"=!"
+    set "SHADOW_ID=!SHADOW_ID:;=!"
 )
 
 if "!SHADOW_ID!"=="" (
