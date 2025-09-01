@@ -2,8 +2,12 @@
 chcp 65001 >nul
 setlocal enabledelayedexpansion
 
-REM Путь к папке источнику
+REM Пути к папкам и файлам
 set "PATH_SRC=test"
+set "PATH_LINK=c:\Work\Backups\Link"
+set "PATH_BACKUP=c:\Work\Backups\_Backup_Temp"
+set "ARH_RAR=C:\Program Files\WinRAR\Rar.exe"
+set "RAR_DST=c:\Work\RAR\%COMPUTERNAME%_!PATH_SRC!"
 
 REM Создаем директории для логов если их нет
 set "PATH_LOGS=c:\Work\Backups\Logs"
@@ -60,5 +64,26 @@ set "SHADOW_SOURCE=!SHADOW_PATH!\!PATH_SRC!"
 echo %DATE% %TIME%: Источник данных: !SHADOW_SOURCE! >> "!Log!"
 
 echo получен источник: !SHADOW_SOURCE!
+REM Создаем ссылку из теневой копии
+mklink /j "!PATH_LINK!" "!SHADOW_SOURCE!"
+
+REM Копирование данных
+echo Копирование данных из !SHADOW_SOURCE! в ...
+robocopy "!PATH_LINK!" "!PATH_BACKUP!" /MIR /R:3 /W:5 /LOG+:"!Log!"
+if !errorlevel! geq 8 (
+    echo %DATE% %TIME%: Ошибка копирования данных. Код ошибки: !errorlevel! >> "!errorsLog!"
+    exit /b 1
+)
+
+REM Создание архива
+"!ARH_RAR!" a -r -m0 "!RAR_DST!_%DATE:~-4%-%DATE:~3,2%-%DATE:~0,2%.rar" "!PATH_BACKUP!"
+
+REM Удаление ссылки
+rmdir "!PATH_LINK!"
+
+REM Удаление теневой копии
+vssadmin delete shadows /shadow=!SHADOW_ID! /quiet
+
+echo %DATE% %TIME%: Операция завершена успешно. >> "!Log!"
 
 endlocal
