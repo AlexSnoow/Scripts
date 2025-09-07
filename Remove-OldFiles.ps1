@@ -94,7 +94,8 @@ function Remove-OldFiles {
                 }
             }
             Write-Host "Удалено файлов: $($filesToDelete.Count)"
-        } else {
+        }
+        else {
             Write-Host "Нет файлов для удаления"
         }
         
