@@ -1,5 +1,4 @@
-<# file CreateBackupRAR.psm1
-<#
+<# file CreateBackupRAR.psm1 utf8
 .SYNOPSIS
     Модуль для архивации данных с помощью RAR
 
@@ -37,7 +36,7 @@
 
 .NOTES
     Автор: Иванов
-    Версия: 4.2 (2025-08-25)
+    Версия: 4.3 (2025-09-07) - Обновление для поддержки UTF-8
     Требуется: RAR установленный в системе
 #>
 
@@ -181,9 +180,9 @@ function BackupWithRAR {
 
         $process = Start-Process @processInfo
 
-        # Чтение и сохранение вывода
-        $stdOut = Get-Content $tempStdOut -Raw
-        $stdErr = Get-Content $tempStdErr -Raw
+        # Чтение вывода в правильной кодировке (OEM Russian для русской Windows)
+        $stdOut = Get-Content -Path $tempStdOut -Raw -Encoding OEM
+        $stdErr = Get-Content -Path $tempStdErr -Raw -Encoding OEM
 
         # Определение описания ошибки по коду возврата
         $errorDescription = if ($rarErrorCodes.ContainsKey($process.ExitCode)) {
@@ -192,14 +191,16 @@ function BackupWithRAR {
             "UNKNOWN ERROR: Unknown exit code $($process.ExitCode)"
         }
 
-        # Сохранение лога
+        # Сохранение лога в UTF-8
         $logContent = @"
 [$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")] Запуск команды: $RarPath $rarArgs
 $stdOut
 $stdErr
 [$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")] Процесс завершен с кодом: $($process.ExitCode) - $errorDescription
 "@
-        Set-Content -Path $logPath -Value $logContent -Encoding UTF8
+        # Сохраняем в UTF-8 с BOM для правильного отображения русских символов
+        $utf8WithBom = [System.Text.UTF8Encoding]::new($true)
+        [System.IO.File]::WriteAllText($logPath, $logContent, $utf8WithBom)
 
         # Формирование результата
         $result = [PSCustomObject]@{

@@ -1,13 +1,16 @@
 <# file TestCreateBackupWithRar.ps1
-<#
 .SYNOPSIS
-    Тестовый скрипт для модуля CreateBackupRAR
+    Тестовый скрипт для модуля CreateBackupRAR utf8
 
 .DESCRIPTION
     Скрипт тестирует модуль архивации, создавая архивы для каждого файла
     в указанной папке и сохраняя логи в отдельную директорию.
     Готов для использования в рабочих скриптах.
 #>
+
+# Устанавливаем кодировку вывода консоли в UTF-8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # Определяем путь к модулю (предполагаем, что он в той же папке, что и скрипт)
 $modulePath = Join-Path $PSScriptRoot "CreateBackupRAR.psm1"
@@ -123,14 +126,12 @@ foreach ($file in $filesToArchive) {
 }
 
 # Итоговая статистика
-Write-Host "=" * 50
 Write-Host "ИТОГИ АРХИВАЦИИ:" -ForegroundColor Cyan
 Write-Host "Успешных операций: $successCount" -ForegroundColor Green
 Write-Host "Ошибок: $errorCount" -ForegroundColor $(if ($errorCount -gt 0) { "Red" } else { "Gray" })
 Write-Host "Всего обработано файлов: $($filesToArchive.Count)" -ForegroundColor Cyan
 Write-Host "Архивы сохранены в: $archiveFolder" -ForegroundColor Yellow
 Write-Host "Логи сохранены в: $logFolder" -ForegroundColor Yellow
-Write-Host "=" * 50
 
 # Возвращаем код выхода в зависимости от наличия ошибок
 if ($errorCount -gt 0) {
