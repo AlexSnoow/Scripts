@@ -6,12 +6,17 @@
 #>
 
 #region Стандартные настройки
+$PCName = $env:COMPUTERNAME
+$JobName = 'Backup_Folder'
+$LogPath = "C:\work\$JobName\logs"
+$RarPath = "c:\work\rar.exe"
+
 $Script:DefaultSettings = @{
-    PCName = $env:COMPUTERNAME
-    JobName = 'BackupName'
-    LogPath = "C:\work\BackupName\logs"
-    RarPath = "c:\work\rar.exe"
-    RarParameters = @("a", "-m5", "-s", "-ep", "-rr1p", "-r", "-tl", "-t")
+    PCName = $PCName
+    JobName = $JobName
+    LogPath = $LogPath
+    RarPath = $RarPath
+    RarParameters = @("a", "-m5", "-s", "-ep", "-rr1p", "-r", "-t")
 }
 #endregion
 

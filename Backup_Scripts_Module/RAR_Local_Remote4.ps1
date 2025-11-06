@@ -2,7 +2,7 @@
 .SYNOPSIS
     Основной скрипт резервного копирования
 .DESCRIPTION
-    Использует модули для выполнения резервного копирования
+    Использует модули для выполнения резервного копирования и обслуживания
 #>
 
 #region Импорт модулей
@@ -10,6 +10,7 @@ try {
     Import-Module "$PSScriptRoot\Backup-Logger.psm1" -Force
     Import-Module "$PSScriptRoot\Backup-Config.psm1" -Force
     Import-Module "$PSScriptRoot\Backup-RAR.psm1" -Force
+    Import-Module "$PSScriptRoot\Backup-Maintenance.psm1" -Force
 }
 catch {
     Write-Error "Ошибка загрузки модулей: $_"
@@ -117,9 +118,17 @@ foreach ($jobName in $config.Jobs.Keys) {
             if ($copyResult.Success) {
                 Write-Log "Копирование завершено успешно за $($copyResult.Duration) секунд"
                 
-                # Удаление локальной копии
-                Remove-Item -Path $archivePath -Force -ErrorAction Stop
-                Write-Log "Локальная копия удалена"
+                # Удаление локальной копии с использованием модуля обслуживания
+                Write-Log "Удаление локальной копии архива..."
+                try {
+                    
+                    Remove-OldFiles -Path $job.LocalDest -DaysOld 0 -KeepCount 2 -Filter "*.*"
+                    Write-Log "Локальная копия успешно удалена"
+                }
+                catch {
+                    Write-Log "Ошибка при удалении локальной копии: $_"
+                    # Не считаем это критической ошибкой
+                }
                 
                 $results[$jobName] = "Успешно (скопировано в сеть)"
                 $successCount++
@@ -145,6 +154,20 @@ foreach ($jobName in $config.Jobs.Keys) {
     $jobDuration = [math]::Round(($jobEnd - $jobStart).TotalMinutes, 2)
     Write-Log "Задание завершено за $jobDuration минут"
     Write-Log "Результат: $($results[$jobName])"
+}
+#endregion
+
+#region Очистка старых Логов
+Write-LogSection "ЗАПУСК ОЧИСТКИ СТАРЫХ Логов"
+
+try {
+    Remove-OldFiles -Path $config.Settings.LogPath -DaysOld 0 -KeepCount 2 -Filter "*.*"
+
+    Write-Log "Очистка завершена успешно"
+}
+catch {
+    Write-Log "Ошибка при выполнении очистки: $_"
+    # Не считаем это критической ошибкой основного процесса
 }
 #endregion
 
