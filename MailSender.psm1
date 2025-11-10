@@ -1,3 +1,14 @@
+<# file 
+.SYNOPSIS
+    Модуль для отправки сообщений
+
+.DESCRIPTION
+    Модуль 
+
+.EXAMPLE
+Send-Email -From "sender@local.loc" -To "recipient@local.loc" -Subject "Test" -Body "Текст письма"
+
+#>
 function Send-Email {
     [CmdletBinding()]
     param(
