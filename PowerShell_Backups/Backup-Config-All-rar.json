@@ -1,0 +1,149 @@
+{
+  "General": {
+    "JobName": "BackupAllJson",
+    "Domain": "localdomain.loc",
+	"SmtpServer": "smtp.localdomain.loc",
+    "LogDaysOld": 30,
+    "LogKeepCount": 7,
+    "ArchiverType": "RAR",
+    "DefaultRarParameters": [
+      "a",
+      "-m5",
+      "-s",
+      "-ep1",
+      "-dh",
+      "-rr1p",
+      "-r"
+    ],
+    "Default7zParameters": [
+      "a",
+      "-t7z",
+      "-m0=lzma2",
+      "-mx=5",
+      "-mfb=64",
+      "-md=32m",
+      "-ms=on",
+      "-sdel",
+      "-r"
+    ]
+  },
+  "Paths": {
+    "LogPathRoot": "C:\\work\\BackupAllJson\\logs",
+    "NetLogPath": "\\\\server\\work\\BackupAllJson\\logs",
+    "RarPath": "c:\\work\\rar.exe",
+    "SevenZipPath": "c:\\work\\7z.exe"
+  },
+  "Recipients": {
+    "AdminIS": "user1@head.localdomain.loc",
+    "AdminOS": "user2@head.localdomain.loc",
+    "AdminMail": "user3@head.localdomain.loc"
+  },
+  "Integrity": {
+    "RarExeHash": "A7A155934662984A5063D8D9215DC5E226AA12F4E04FCA932574EA075E32DD3A",
+    "SevenZipExeHash": "4CD7D776C686427226A151789D2D61F0B2ED2C392148CC4E69C0238362FAFECF"
+  },
+  "Jobs": [
+    {
+      "Name": "JOB1",
+      "Source": "C:\\Work\\BackupAllJson\\src\\JOB1\\",
+	  "ListSourceFlag": "csv",
+	  "SourceCheckMasks": [ "File_0*.*", "ADV*.*", "*.xml" ],
+      "RemoveSourceFlag": false,
+      "SourceDaysOld": 2,
+      "SourceKeepCount": 301,
+      "ArchivePattern": "{PCName}_{JobName}_{Date_Time}.rar",
+      "LocalDest": "C:\\Work\\BackupAllJson\\dst\\Local\\JOB1\\",
+      "LocalDestDaysOld": 2,
+      "LocalDestKeepCount": 1,
+      "RemoteDest": "C:\\Work\\BackupAllJson\\dst\\Remote\\",
+      "RemoveRemoteDestFlag": true,
+      "RemoteDestDaysOld": 31,
+      "RemoteDestKeepCount": 30,
+      "ArhParameters": [
+        "a",
+        "-m3",
+        "-s",
+        "-ep1",
+        "-dh",
+        "-rr1p",
+        "-r"
+      ],
+      "ArhLog": true
+    },
+    {
+      "Name": "JOB2",
+      "Source": "C:\\Work\\BackupAllJson\\src\\JOB2\\",
+      "RemoveSourceFlag": false,
+      "SourceDaysOld": 2,
+      "SourceKeepCount": 301,
+      "ArchivePattern": "{PCName}_{JobName}_{Date_Time}.rar",
+      "LocalDest": "C:\\Work\\BackupAllJson\\dst\\Local\\JOB2\\",
+      "LocalDestDaysOld": 2,
+      "LocalDestKeepCount": 1,
+      "RemoteDest": "C:\\Work\\BackupAllJson\\dst\\Remote\\",
+      "RemoveRemoteDestFlag": true,
+      "RemoteDestDaysOld": 31,
+      "RemoteDestKeepCount": 30,
+      "ArhParameters": [
+        "a",
+        "-m3",
+        "-s",
+        "-ep1",
+        "-dh",
+        "-rr1p",
+        "-r"
+      ],
+      "ArhLog": true
+    },
+    {
+      "Name": "JOB3",
+      "Source": "C:\\Work\\BackupAllJson\\src\\JOB3\\",
+      "RemoveSourceFlag": false,
+      "SourceDaysOld": 2,
+      "SourceKeepCount": 301,
+      "ArchivePattern": "{PCName}_{JobName}_{Date_Time}.rar",
+      "LocalDest": "C:\\Work\\BackupAllJson\\dst\\Local\\JOB3\\",
+      "LocalDestDaysOld": 2,
+      "LocalDestKeepCount": 1,
+      "RemoteDest": "C:\\Work\\BackupAllJson\\dst\\Remote\\",
+      "RemoveRemoteDestFlag": true,
+      "RemoteDestDaysOld": 31,
+      "RemoteDestKeepCount": 30,
+      "ArhParameters": [
+        "a",
+        "-m5",
+        "-s",
+        "-ep1",
+        "-dh",
+        "-rr1p",
+        "-r"
+      ],
+      "ArhLog": false
+    },
+    {
+      "Name": "JOB4",
+      "Source": "C:\\Work\\BackupAllJson\\src\\JOB4\\",
+      "RemoveSourceFlag": false,
+      "SourceDaysOld": 2,
+      "SourceKeepCount": 301,
+      "ArchivePattern": "{PCName}_{JobName}_{Date_Time}.rar",
+      "LocalDest": "C:\\Work\\BackupAllJson\\dst\\Local\\JOB4\\",
+      "LocalDestDaysOld": 2,
+      "LocalDestKeepCount": 1,
+      "RemoteDest": "C:\\Work\\BackupAllJson\\dst\\Remote\\",
+      "RemoveRemoteDestFlag": true,
+      "RemoteDestDaysOld": 31,
+      "RemoteDestKeepCount": 30,
+      "ArhParameters": [
+        "a",
+        "-m5",
+        "-s",
+        "-ep1",
+        "-dh",
+        "-rr1p",
+        "-r"
+      ],
+      "ArhLog": true
+    }
+  ]
+}
