@@ -2,8 +2,8 @@
   "General": {
     "JobName": "BackupAllJson",
     "Domain": "localdomain.loc",
-	"SmtpServer": "smtp.localdomain.loc",
-    "LogDaysOld": 30,
+    "SmtpServer": "smtp.localdomain.loc",
+    "LogDaysOld": 7,
     "LogKeepCount": 7,
     "ArchiverType": "RAR",
     "DefaultRarParameters": [
@@ -46,8 +46,13 @@
     {
       "Name": "JOB1",
       "Source": "C:\\Work\\BackupAllJson\\src\\JOB1\\",
-	  "ListSourceFlag": "csv",
-	  "SourceCheckMasks": [ "File_0*.*", "ADV*.*", "*.xml" ],
+      "SourceFilter": "*.xml",
+      "ListSourceFlag": "csv",
+      "SourceCheckMasks": [
+        "File_0*.*",
+        "ADV*.*",
+        "*.xml"
+      ],
       "RemoveSourceFlag": false,
       "SourceDaysOld": 2,
       "SourceKeepCount": 301,
@@ -73,6 +78,7 @@
     {
       "Name": "JOB2",
       "Source": "C:\\Work\\BackupAllJson\\src\\JOB2\\",
+      "SourceFilter": "*.log",
       "RemoveSourceFlag": false,
       "SourceDaysOld": 2,
       "SourceKeepCount": 301,
