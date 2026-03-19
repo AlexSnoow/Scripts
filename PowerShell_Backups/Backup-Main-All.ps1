@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
     File Backup-Main-All.ps1
-    Автономный скрипт резервного копирования (Версия 2.4)
+    Автономный скрипт резервного копирования (Версия 2.5)
 .DESCRIPTION
     Единый файл, включающий все функции модулей:
     - Backup-Logger.psm1 (логирование)
@@ -35,8 +35,8 @@
     - RemoteDestKeepCount - Минимальное количество файлов удаленного хранилища для сохранения
 
 .PARAMETER ConfigFile
-    Имя конфигурационного файла (по умолчанию: Backup-Config-All.json)
-    Пример: 
+    Имя конфигурационного файла (по умолчанию: Backup-Config-All-rar.json)
+    Пример:
     7z конфигурация
     .\Backup-Main-All.ps1 -ConfigFile Backup-Config-All-7z.json
     RAR конфигурация
@@ -44,11 +44,11 @@
 
 .EXAMPLE
     powershell.exe -executionpolicy RemoteSigned -file .\Backup-Main-All.ps1
-    
+
 .NOTES
     Автор: Тюкавкин
-    Версия: 2.4
-    Дата: 2026-03-01
+    Версия: 2.5
+    Дата: 2026-03-19
 
     ТРЕБОВАНИЯ БЕЗОПАСНОСТИ:
     1. Файл конфигурации должен лежать в той же папке.
@@ -64,7 +64,98 @@ param(
     [string]$ConfigFile = 'Backup-Config-All-rar.json'
 )
 
+# ===========================================================
+# КОНСТАНТЫ И НАСТРОЙКИ
+# ===========================================================
+$Script:EncodingOEM = [System.Text.Encoding]::GetEncoding(866)
+$Script:EncodingUTF8NoBOM = New-Object System.Text.UTF8Encoding $false
+$Script:CultureInvariant = [System.Globalization.CultureInfo]::InvariantCulture
+
 Clear-Host
+
+# ===========================================================
+# ФУНКЦИЯ ВЫЧИСЛЕНИЯ SHA256 ХЕША (совместимость с PowerShell 5.1)
+# ===========================================================
+<#
+.SYNOPSIS
+    Вычисление SHA256 хеша файла
+.DESCRIPTION
+    Совместимая реализация для PowerShell 5.1 через .NET классы.
+    Используется как замена cmdlet Get-FileHash если он недоступен.
+    Поддерживает параметры оригинального cmdlet для полной совместимости.
+.PARAMETER Path
+    Путь к файлу
+.PARAMETER LiteralPath
+    Путь к файлу (без обработки подстановочных знаков)
+.PARAMETER Algorithm
+    Алгоритм хеширования (поддерживается только SHA256)
+.OUTPUTS
+    [PSCustomObject] Объект с хешем (совместимый с Get-FileHash)
+.EXAMPLE
+    Get-FileHashCompat -Path "C:\file.txt"
+.EXAMPLE
+    Get-FileHashCompat -LiteralPath "C:\file.txt" -Algorithm SHA256
+#>
+function Get-FileHashCompat {
+    [CmdletBinding(DefaultParameterSetName = 'Path')]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory = $true, ParameterSetName = 'Path', Position = 0, ValueFromPipeline = $true)]
+        [string]$Path,
+        
+        [Parameter(Mandatory = $true, ParameterSetName = 'LiteralPath')]
+        [string]$LiteralPath,
+        
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('SHA1', 'SHA256', 'SHA384', 'SHA512', 'MD5')]
+        [string]$Algorithm = 'SHA256'
+    )
+    process {
+        $filePath = if ($PSCmdlet.ParameterSetName -eq 'LiteralPath') { $LiteralPath } else { $Path }
+        
+        try {
+            # Проверка существования файла
+            if (-not (Test-Path -LiteralPath $filePath -PathType Leaf)) {
+                throw "Файл не найден: $filePath"
+            }
+            
+            # Выбор алгоритма хеширования
+            $hashAlgo = switch ($Algorithm.ToUpper()) {
+                'SHA1' { [System.Security.Cryptography.SHA1]::Create() }
+                'SHA256' { [System.Security.Cryptography.SHA256]::Create() }
+                'SHA384' { [System.Security.Cryptography.SHA384]::Create() }
+                'SHA512' { [System.Security.Cryptography.SHA512]::Create() }
+                'MD5' { [System.Security.Cryptography.MD5]::Create() }
+                default { [System.Security.Cryptography.SHA256]::Create() }
+            }
+            
+            $fileStream = [System.IO.File]::OpenRead($filePath)
+            try {
+                $hashBytes = $hashAlgo.ComputeHash($fileStream)
+                $hashString = [System.BitConverter]::ToString($hashBytes).Replace('-', '')
+                
+                # Возвращаем объект совместимый с Get-FileHash
+                return [PSCustomObject]@{
+                    Hash      = $hashString.ToUpper()
+                    Algorithm = $Algorithm.ToUpper()
+                    Path      = (Resolve-Path -LiteralPath $filePath).Path
+                }
+            }
+            finally {
+                $fileStream.Dispose()
+                $hashAlgo.Dispose()
+            }
+        }
+        catch {
+            throw "Ошибка вычисления хеша файла '$filePath': $($_.Exception.Message)"
+        }
+    }
+}
+
+# Создаем алиас Get-FileHash если cmdlet недоступен
+if (-not (Get-Command Get-FileHash -ErrorAction SilentlyContinue)) {
+    New-Alias -Name Get-FileHash -Value Get-FileHashCompat -Scope Global -Force
+}
 
 # ===========================================================
 #region НАСТРОЙКИ БЕЗОПАСНОСТИ
@@ -72,7 +163,7 @@ Clear-Host
 # Словарь конфигураций: ИмяФайла = ОжидаемыйHash
 $Script:ConfigHashes = @{
     'Backup-Config-All.json'     = 'DC6E9D71FF25F7933C2C123BB0C5809F7874FEFFB055A25F4E6830EA59EBC78C'  # По умолчанию конфигурация
-    'Backup-Config-All-rar.json' = '24A6650D1FA97018F083CC5BB17F37576F669F297BB6F93B8F1ACD51E0F8D04F'  # RAR конфигурация
+    'Backup-Config-All-rar.json' = 'C06752F24C071DCD0DD477E5136371DCB22F3C0D491F5F3154EE40B94243D4C6'  # RAR конфигурация (обновите хеш после изменения файла)
     'Backup-Config-All-7z.json'  = 'A85F2E0342CD3FAE83F65317145762D072223E77C279C71834734E8A84328A56'  # 7z конфигурация
 }
 
@@ -373,11 +464,11 @@ function Write-Log {
 
             $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
             $levelPrefix = switch ($Level) {
-                'ERROR'   { '[ERROR]  ' }
+                'ERROR' { '[ERROR]  ' }
                 'WARNING' { '[WARNING]' }
                 'SUCCESS' { '[SUCCESS]' }
-                'DEBUG'   { '[DEBUG]  ' }
-                default   { '[INFO]   ' }
+                'DEBUG' { '[DEBUG]  ' }
+                default { '[INFO]   ' }
             }
 
             # Удаление переносов строк из сообщения
@@ -395,7 +486,7 @@ function Write-Log {
 
             # Вывод в консоль в зависимости от уровня
             switch ($Level) {
-                'ERROR'   { Write-Error $Message -ErrorAction Continue }
+                'ERROR' { Write-Error $Message -ErrorAction Continue }
                 'WARNING' { Write-Warning $Message }
                 'SUCCESS' { Write-Host $Message -ForegroundColor Green }
             }
@@ -514,12 +605,21 @@ function Write-WinEventAppLog {
     try {
         # Проверка регистрации источника
         # ВАЖНО: Вторым аргументом должно быть имя компьютера ("." - локальный), а не имя лога!
-        $existingLog = [System.Diagnostics.EventLog]::LogNameFromSourceName($Source, ".")
+        $existingLog = $null
+        try {
+            $existingLog = [System.Diagnostics.EventLog]::LogNameFromSourceName($Source, ".")
+        }
+        catch [System.Management.Automation.MethodInvocationException] {
+            # Источник не найден - это нормальная ситуация
+            Write-Log "Предупреждение: Источник '$Source' не зарегистрирован в журнале '$LogName'. Запись в Event Log невозможна." -Level WARNING
+            Write-Log "Для регистрации источника выполните от имени администратора: New-EventLog -Source '$Source' -LogName '$LogName'" -Level WARNING
+            return
+        }
 
         # Если источник не найден, метод возвращает пустую строку
         if ([string]::IsNullOrEmpty($existingLog)) {
             Write-Log "Предупреждение: Источник '$Source' не зарегистрирован в журнале '$LogName'. Запись в Event Log невозможна." -Level WARNING
-            Write-Log "Для регистрации источника выполните от имени администратора: [System.Diagnostics.EventLog]::CreateEventSource('$Source', '$LogName')" -Level WARNING
+            Write-Log "Для регистрации источника выполните от имени администратора: New-EventLog -Source '$Source' -LogName '$LogName'" -Level WARNING
             return
         }
 
@@ -588,7 +688,8 @@ function Get-RarExitCodeMeaning {
 
     if ($errorDescriptions.ContainsKey($ExitCode)) {
         return $errorDescriptions[$ExitCode]
-    } else {
+    }
+    else {
         return "Неизвестный код возврата: $ExitCode"
     }
 }
@@ -619,7 +720,8 @@ function Start-RarArchive {
         [Parameter(Mandatory = $true)][string]$ArchivePath,
         [Parameter(Mandatory = $true)][string]$SourcePath,
         [Parameter(Mandatory = $false)][string[]]$Parameters = @("a", "-m3", "-s", "-ep1", "-rr1p", "-r", "-dh", "-t"),
-        [Parameter(Mandatory = $false)][string]$LogPath
+        [Parameter(Mandatory = $false)][string]$LogPath,
+        [Parameter(Mandatory = $false)][string]$SourceFilter
     )
 
     begin {
@@ -644,7 +746,17 @@ function Start-RarArchive {
         }
 
         $safeArchivePath = '"' + ($ArchivePath -replace '"', '\"') + '"'
-        $safeSourcePath = '"' + ($SourcePath -replace '"', '\"') + '"'
+        
+        # Применение фильтра SourceFilter если указан
+        if (-not [string]::IsNullOrWhiteSpace($SourceFilter)) {
+            $filteredPath = Join-Path -Path $SourcePath -ChildPath $SourceFilter
+            $safeSourcePath = '"' + ($filteredPath -replace '"', '\"') + '"'
+            Write-Verbose "Применён фильтр SourceFilter: $SourceFilter" -Verbose
+        }
+        else {
+            $safeSourcePath = '"' + ($SourcePath -replace '"', '\"') + '"'
+        }
+        
         $argsList += @($safeArchivePath, $safeSourcePath)
 
         Write-Verbose "Аргументы RAR: $($argsList -join ' ')" -Verbose
@@ -740,8 +852,8 @@ function Start-RarArchive {
 #>
 function Test-RarArchive {
     param(
-        [Parameter(Mandatory=$true)][string]$RarPath,
-        [Parameter(Mandatory=$true)][string]$ArchivePath
+        [Parameter(Mandatory = $true)][string]$RarPath,
+        [Parameter(Mandatory = $true)][string]$ArchivePath
     )
 
     $testArgs = @("t", "`"$ArchivePath`"")
@@ -751,7 +863,7 @@ function Test-RarArchive {
 
     return @{
         ExitCode = $process.ExitCode
-        IsValid = ($process.ExitCode -eq 0)
+        IsValid  = ($process.ExitCode -eq 0)
     }
 }
 #endregion /МОДУЛЬ RAR ОПЕРАЦИЙ
@@ -783,7 +895,8 @@ function Get-7zExitCodeMeaning {
 
     if ($errorDescriptions.ContainsKey($ExitCode)) {
         return $errorDescriptions[$ExitCode]
-    } else {
+    }
+    else {
         return "Неизвестный код возврата: $ExitCode"
     }
 }
@@ -818,7 +931,8 @@ function Start-7zArchive {
         [Parameter(Mandatory = $true)][string]$SourcePath,
         [Parameter(Mandatory = $false)][string]$ArchiveType = "7z",
         [Parameter(Mandatory = $false)][string[]]$Parameters = @("a", "-t7z", "-m0=lzma2", "-mx=5", "-mfb=64", "-md=32m", "-ms=on", "-sdel-", "-r"),
-        [Parameter(Mandatory = $false)][string]$LogPath
+        [Parameter(Mandatory = $false)][string]$LogPath,
+        [Parameter(Mandatory = $false)][string]$SourceFilter
     )
 
     begin {
@@ -842,9 +956,9 @@ function Start-7zArchive {
         # Добавляем тип архива, если не указан в параметрах
         if ($Parameters -notmatch '^-t') {
             $archiveTypeSwitch = switch ($ArchiveType.ToLower()) {
-                "7z"   { "-t7z" }
-                "zip"  { "-tzip" }
-                "tar"  { "-ttar" }
+                "7z" { "-t7z" }
+                "zip" { "-tzip" }
+                "tar" { "-ttar" }
                 "gzip" { "-tgz" }
                 default { "-t7z" }
             }
@@ -854,9 +968,19 @@ function Start-7zArchive {
         }
 
         $safeArchivePath = '"' + ($ArchivePath -replace '"', '\"') + '"'
-        # Используем полный путь с * для сохранения структуры каталогов
-        $fullSourcePath = (Join-Path $SourcePath '*') -replace '\\\\', '\'
-        $safeSourcePath = '"' + $fullSourcePath + '"'
+        
+        # Применение фильтра SourceFilter если указан
+        if (-not [string]::IsNullOrWhiteSpace($SourceFilter)) {
+            $filteredPath = Join-Path -Path $SourcePath -ChildPath $SourceFilter
+            $safeSourcePath = '"' + ($filteredPath -replace '"', '\"') + '"'
+            Write-Verbose "Применён фильтр SourceFilter: $SourceFilter" -Verbose
+        }
+        else {
+            # Используем полный путь с * для сохранения структуры каталогов
+            $fullSourcePath = (Join-Path $SourcePath '*') -replace '\\\\', '\'
+            $safeSourcePath = '"' + $fullSourcePath + '"'
+        }
+        
         $argsList += @($safeArchivePath, $safeSourcePath)
 
         Write-Verbose "Аргументы 7z: $($argsList -join ' ')" -Verbose
@@ -929,15 +1053,15 @@ function Start-7zArchive {
             Write-Verbose "Стек вызовов: $($_.ScriptStackTrace)" -Verbose
 
             return @{
-                ExitCode    = 255
-                Duration    = $duration
-                StartTime   = $processStart
-                EndTime     = $processEnd
-                LogPath     = $actualLogPath
-                LogContent  = @()
-                StdOut      = ""
-                StdErr      = $_.Exception.Message
-                Exception   = $_.Exception
+                ExitCode   = 255
+                Duration   = $duration
+                StartTime  = $processStart
+                EndTime    = $processEnd
+                LogPath    = $actualLogPath
+                LogContent = @()
+                StdOut     = ""
+                StdErr     = $_.Exception.Message
+                Exception  = $_.Exception
             }
         }
     }
@@ -957,8 +1081,8 @@ function Start-7zArchive {
 #>
 function Test-7zArchive {
     param(
-        [Parameter(Mandatory=$true)][string]$SevenZipPath,
-        [Parameter(Mandatory=$true)][string]$ArchivePath
+        [Parameter(Mandatory = $true)][string]$SevenZipPath,
+        [Parameter(Mandatory = $true)][string]$ArchivePath
     )
 
     $testArgs = @("t", "`"$ArchivePath`"")
@@ -968,7 +1092,7 @@ function Test-7zArchive {
 
     return @{
         ExitCode = $process.ExitCode
-        IsValid = ($process.ExitCode -eq 0)
+        IsValid  = ($process.ExitCode -eq 0)
     }
 }
 
@@ -990,8 +1114,8 @@ function Test-7zArchive {
 function Get-7zArchiveFileList {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)][string]$SevenZipPath,
-        [Parameter(Mandatory=$true)][string]$ArchivePath
+        [Parameter(Mandatory = $true)][string]$SevenZipPath,
+        [Parameter(Mandatory = $true)][string]$ArchivePath
     )
 
     Write-Verbose "Чтение содержимого архива 7z: $ArchivePath"
@@ -1043,17 +1167,18 @@ function Get-7zArchiveFileList {
                         $size = [int64]$currentFile['Size']
                         $date = if ($currentFile.ContainsKey('Modified')) {
                             [DateTime]::Parse($currentFile['Modified'], [System.Globalization.CultureInfo]::InvariantCulture)
-                        } else { Get-Date }
+                        }
+                        else { Get-Date }
 
                         # Нормализация пути: заменяем обратные слеши
                         $normalizedPath = $path -replace '/', '\'
 
                         $files += [PSCustomObject]@{
-                            RelativePath   = $normalizedPath.ToLowerInvariant()
-                            Length         = $size
-                            LastWriteTime  = $date
-                            Source         = "Archive"
-                            FullPath       = $path
+                            RelativePath  = $normalizedPath.ToLowerInvariant()
+                            Length        = $size
+                            LastWriteTime = $date
+                            Source        = "Archive"
+                            FullPath      = $path
                         }
                     }
                 }
@@ -1084,17 +1209,18 @@ function Get-7zArchiveFileList {
                 $size = [int64]$currentFile['Size']
                 $date = if ($currentFile.ContainsKey('Modified')) {
                     [DateTime]::Parse($currentFile['Modified'], [System.Globalization.CultureInfo]::InvariantCulture)
-                } else { Get-Date }
+                }
+                else { Get-Date }
 
                 # Нормализация пути: заменяем обратные слеши
                 $normalizedPath = $path -replace '/', '\'
 
                 $files += [PSCustomObject]@{
-                    RelativePath   = $normalizedPath.ToLowerInvariant()
-                    Length         = $size
-                    LastWriteTime  = $date
-                    Source         = "Archive"
-                    FullPath       = $path
+                    RelativePath  = $normalizedPath.ToLowerInvariant()
+                    Length        = $size
+                    LastWriteTime = $date
+                    Source        = "Archive"
+                    FullPath      = $path
                 }
             }
         }
@@ -1123,7 +1249,7 @@ function Get-7zArchiveFileList {
     [hashtable] FileCount, TotalSizeMB, FileSamples, HasMoreFiles
 #>
 function Get-FileInfoDetails {
-    param([Parameter(Mandatory=$true)][string]$Path)
+    param([Parameter(Mandatory = $true)][string]$Path)
 
     try {
         $items = Get-ChildItem -Path $Path -Recurse -ErrorAction Stop | Where-Object { -not $_.PSIsContainer }
@@ -1132,30 +1258,30 @@ function Get-FileInfoDetails {
 
         $fileSamples = $items | Select-Object -First 5 | ForEach-Object {
             @{
-                Name = $_.Name
-                SizeKB = [math]::Round($_.Length / 1KB, 2)
+                Name     = $_.Name
+                SizeKB   = [math]::Round($_.Length / 1KB, 2)
                 FullPath = $_.FullName
             }
         }
 
         return @{
-            FileCount = $fileCount
-            TotalSizeMB = [math]::Round($totalSize / 1MB, 2)
+            FileCount      = $fileCount
+            TotalSizeMB    = [math]::Round($totalSize / 1MB, 2)
             TotalSizeBytes = $totalSize
-            FileSamples = $fileSamples
-            HasMoreFiles = ($fileCount -gt 5)
+            FileSamples    = $fileSamples
+            HasMoreFiles   = ($fileCount -gt 5)
             MoreFilesCount = ($fileCount - 5)
         }
     }
     catch {
         return @{
-            FileCount = 0
-            TotalSizeMB = 0
+            FileCount      = 0
+            TotalSizeMB    = 0
             TotalSizeBytes = 0
-            FileSamples = @()
-            HasMoreFiles = $false
+            FileSamples    = @()
+            HasMoreFiles   = $false
             MoreFilesCount = 0
-            Error = $_.Exception.Message
+            Error          = $_.Exception.Message
         }
     }
 }
@@ -1174,8 +1300,8 @@ function Get-FileInfoDetails {
 #>
 function Copy-BackupFile {
     param(
-        [Parameter(Mandatory=$true)][string]$SourcePath,
-        [Parameter(Mandatory=$true)][string]$DestinationPath
+        [Parameter(Mandatory = $true)][string]$SourcePath,
+        [Parameter(Mandatory = $true)][string]$DestinationPath
     )
 
     $copyStart = Get-Date
@@ -1187,12 +1313,12 @@ function Copy-BackupFile {
     $destSize = (Get-Item $DestinationPath).Length
 
     return @{
-        Success = ($sourceSize -eq $destSize)
-        Duration = $duration
-        SourceSize = $sourceSize
+        Success         = ($sourceSize -eq $destSize)
+        Duration        = $duration
+        SourceSize      = $sourceSize
         DestinationSize = $destSize
-        StartTime = $copyStart
-        EndTime = $copyEnd
+        StartTime       = $copyStart
+        EndTime         = $copyEnd
     }
 }
 #endregion /ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ АРХИВАЦИИ
@@ -1213,29 +1339,29 @@ function Copy-BackupFile {
 .OUTPUTS
 [string] Относительный путь в нижнем регистре
 .EXAMPLE
-Normalize-RelativePath -FullPath "C:\Work\src\file.txt" -RootPath "C:\Work\src"
+Get-CanonicalPath -FullPath "C:\Work\src\file.txt" -RootPath "C:\Work\src"
 # Возвращает: "file.txt"
 #>
-function Normalize-RelativePath {
+function Get-CanonicalPath {
     [CmdletBinding()]
     [OutputType([string])]
     param(
-        [Parameter(Mandatory=$true)][string]$FullPath,
-        [Parameter(Mandatory=$true)][string]$RootPath
+        [Parameter(Mandatory = $true)][string]$FullPath,
+        [Parameter(Mandatory = $true)][string]$RootPath
     )
     process {
         # Нормализация разделителей
         $normalizedFull = $FullPath -replace '/', '\'
         $normalizedRoot = $RootPath -replace '/', '\'
-        
+
         # Удаление завершающих слешей
         $normalizedFull = $normalizedFull.TrimEnd('\')
         $normalizedRoot = $normalizedRoot.TrimEnd('\')
-        
+
         # Преобразование к нижнему регистру для сравнения
         $lowerFull = $normalizedFull.ToLowerInvariant()
         $lowerRoot = $normalizedRoot.ToLowerInvariant()
-        
+
         # Удаление корневой части
         if ($lowerFull.StartsWith($lowerRoot)) {
             $relative = $normalizedFull.Substring($normalizedRoot.Length).TrimStart('\')
@@ -1244,7 +1370,7 @@ function Normalize-RelativePath {
             # Если путь не начинается с корня, используем как есть
             $relative = $normalizedFull
         }
-        
+
         return $relative.ToLowerInvariant()
     }
 }
@@ -1262,13 +1388,13 @@ function Normalize-RelativePath {
 function Get-CommonPathPrefix {
     [CmdletBinding()]
     [OutputType([string])]
-    param([Parameter(Mandatory=$true)][string[]]$Paths)
+    param([Parameter(Mandatory = $true)][string[]]$Paths)
 
     if ($Paths.Count -eq 0) { return "" }
     if ($Paths.Count -eq 1) {
         $parts = $Paths[0] -split '\\'
         if ($parts.Count -gt 1) {
-            return ($parts[0..($parts.Count-2)] -join '\') + '\'
+            return ($parts[0..($parts.Count - 2)] -join '\') + '\'
         }
         return ""
     }
@@ -1288,7 +1414,8 @@ function Get-CommonPathPrefix {
         }
         if ($allSame) {
             $commonComponents += $splitPaths[0][$i]
-        } else {
+        }
+        else {
             break
         }
     }
@@ -1314,13 +1441,13 @@ function Get-CommonPathPrefix {
 function Get-FileList {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateScript({
-            if (-not (Test-Path -LiteralPath $_ -PathType Container)) {
-                throw "Директория не существует: $_"
-            }
-            $true
-        })]
+                if (-not (Test-Path -LiteralPath $_ -PathType Container)) {
+                    throw "Директория не существует: $_"
+                }
+                $true
+            })]
         [string]$Path
     )
 
@@ -1333,19 +1460,19 @@ function Get-FileList {
     process {
         try {
             $items = Get-ChildItem -LiteralPath $rootPath -Recurse -File -Force -ErrorAction SilentlyContinue |
-                     Where-Object { -not $_.Attributes.HasFlag([System.IO.FileAttributes]::ReparsePoint) }
+            Where-Object { -not $_.Attributes.HasFlag([System.IO.FileAttributes]::ReparsePoint) }
 
             foreach ($item in $items) {
                 if (-not (Test-Path -LiteralPath $item.FullName -PathType Leaf)) { continue }
 
-                $relative = Normalize-RelativePath -FullPath $item.FullName -RootPath $rootPath
+                $relative = Get-CanonicalPath -FullPath $item.FullName -RootPath $rootPath
 
                 [PSCustomObject]@{
-                    RelativePath   = $relative
-                    Length         = $item.Length
-                    LastWriteTime  = $item.LastWriteTime
-                    Source         = "FileSystem"
-                    FullName       = $item.FullName
+                    RelativePath  = $relative
+                    Length        = $item.Length
+                    LastWriteTime = $item.LastWriteTime
+                    Source        = "FileSystem"
+                    FullName      = $item.FullName
                 }
             }
         }
@@ -1371,8 +1498,8 @@ function Get-FileList {
 function Get-FilterFileList {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)][string]$Path,
-        [Parameter(Mandatory=$true)][ValidateNotNullOrEmpty()][string]$Filter
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][ValidateNotNullOrEmpty()][string]$Filter
     )
 
     Write-Verbose "Поиск файлов по маске '$Filter' в '$Path'"
@@ -1390,7 +1517,8 @@ function Get-FilterFileList {
 
         if ($Filter.Contains('\') -or $Filter.Contains('/')) {
             return $path -like $lowerFilter
-        } else {
+        }
+        else {
             return $name -like $lowerFilter
         }
     }
@@ -1422,9 +1550,9 @@ function Get-FilterFileList {
 function Get-FileArhList {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)][string]$ArchiverType,
-        [Parameter(Mandatory=$true)][string]$ArchiverPath,
-        [Parameter(Mandatory=$true)][string]$ArchivePath
+        [Parameter(Mandatory = $true)][string]$ArchiverType,
+        [Parameter(Mandatory = $true)][string]$ArchiverPath,
+        [Parameter(Mandatory = $true)][string]$ArchivePath
     )
 
     Write-Verbose "Чтение содержимого архива: $ArchivePath (Тип: $ArchiverType)"
@@ -1447,10 +1575,10 @@ function Get-FileArhList {
                     if ($item.IsFolder) { continue }
                     
                     $files += [PSCustomObject]@{
-                        RelativePath   = $item.Path
-                        Length         = $item.Size
-                        LastWriteTime  = $item.Date
-                        Source         = "Archive"
+                        RelativePath  = $item.Path
+                        Length        = $item.Size
+                        LastWriteTime = $item.Date
+                        Source        = "Archive"
                     }
                 }
                 
@@ -1483,8 +1611,8 @@ function Get-FileArhList {
 function Get-FileArhListRar {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)][ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })][string]$RarPath,
-        [Parameter(Mandatory=$true)][ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })][string]$ArchivePath
+        [Parameter(Mandatory = $true)][ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })][string]$RarPath,
+        [Parameter(Mandatory = $true)][ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })][string]$ArchivePath
     )
 
     Write-Verbose "Чтение содержимого RAR архива: $ArchivePath"
@@ -1521,7 +1649,8 @@ function Get-FileArhListRar {
 
         if ($fileList.Count -eq 0) {
             Write-Warning "Архив пуст или не удалось извлечь список файлов."
-        } else {
+        }
+        else {
             Write-Verbose "В архиве найдено файлов: $($fileList.Count)"
         }
 
@@ -1544,7 +1673,7 @@ function Get-FileArhListRar {
     [object[]] Коллекция объектов: RelativePath, Length, LastWriteTime
 #>
 function ConvertFrom-RarListOutput {
-    param([Parameter(Mandatory=$true)][object]$RawOutput)
+    param([Parameter(Mandatory = $true)][object]$RawOutput)
 
     $files = @()
     $content = ""
@@ -1552,7 +1681,8 @@ function ConvertFrom-RarListOutput {
     if ($RawOutput -is [byte[]]) {
         $utf8Encoding = New-Object System.Text.UTF8Encoding
         $content = $utf8Encoding.GetString($RawOutput)
-    } else {
+    }
+    else {
         $content = $RawOutput -join "`r`n"
     }
 
@@ -1570,10 +1700,10 @@ function ConvertFrom-RarListOutput {
             if ($currentName -and $currentSize -and $currentDate) {
                 $relativeName = ($currentName -replace '^\\+', '' -replace '/', '\').ToLowerInvariant()
                 $files += [PSCustomObject]@{
-                    RelativePath   = $relativeName
-                    Length         = $currentSize
-                    LastWriteTime  = $currentDate
-                    Source         = "Archive"
+                    RelativePath  = $relativeName
+                    Length        = $currentSize
+                    LastWriteTime = $currentDate
+                    Source        = "Archive"
                 }
             }
             $currentName = $matches[1].Trim()
@@ -1604,10 +1734,10 @@ function ConvertFrom-RarListOutput {
     if ($currentName -and $currentSize -and $currentDate) {
         $relativeName = ($currentName -replace '^\\+', '' -replace '/', '\').ToLowerInvariant()
         $files += [PSCustomObject]@{
-            RelativePath   = $relativeName
-            Length         = $currentSize
-            LastWriteTime  = $currentDate
-            Source         = "Archive"
+            RelativePath  = $relativeName
+            Length        = $currentSize
+            LastWriteTime = $currentDate
+            Source        = "Archive"
         }
     }
 
@@ -1623,9 +1753,9 @@ function ConvertFrom-RarListOutput {
 function Compare-FilesSourceArchive {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)][AllowEmptyCollection()][object[]]$SourceList,
-        [Parameter(Mandatory=$true)][AllowEmptyCollection()][object[]]$ArchiveList,
-        [Parameter(Mandatory=$false)][string]$SourcePath
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][object[]]$SourceList,
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][object[]]$ArchiveList,
+        [Parameter(Mandatory = $false)][string]$SourcePath
     )
     process {
         Write-Verbose "Начало сравнения: Источник ($($SourceList.Count)) vs Архив ($($ArchiveList.Count))"
@@ -1855,11 +1985,11 @@ function Remove-OldFiles {
 function Send-Email {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)][string]$SmtpServer,
-        [Parameter(Mandatory=$true)][string]$From,
-        [Parameter(Mandatory=$true)][string]$To,
-        [Parameter(Mandatory=$true)][string]$Subject,
-        [Parameter(Mandatory=$true)][string]$Body
+        [Parameter(Mandatory = $true)][string]$SmtpServer,
+        [Parameter(Mandatory = $true)][string]$From,
+        [Parameter(Mandatory = $true)][string]$To,
+        [Parameter(Mandatory = $true)][string]$Subject,
+        [Parameter(Mandatory = $true)][string]$Body
     )
 
     $Encoding = [System.Text.Encoding]::UTF8
@@ -1868,15 +1998,16 @@ function Send-Email {
     try {
         # ВАЖНО: Используем -ErrorAction Stop, чтобы ошибка попала в catch
         Send-MailMessage -From $From -To $To -Subject $Subject -Body $Body `
-                        -SmtpServer $SmtpServer -Encoding $Encoding -BodyAsHtml:$BodyAsHtml `
-                        -Credential (New-Object System.Management.Automation.PSCredential("NT AUTHORITY\ANONYMOUS LOGON", (New-Object System.Security.SecureString))) -ErrorAction Stop
+            -SmtpServer $SmtpServer -Encoding $Encoding -BodyAsHtml:$BodyAsHtml `
+            -Credential (New-Object System.Management.Automation.PSCredential("NT AUTHORITY\ANONYMOUS LOGON", (New-Object System.Security.SecureString))) -ErrorAction Stop
 
         Write-Host "✓ Письмо отправлено: $Subject" -ForegroundColor Green
         return $true
     }
     catch {
         # Выводим полную информацию об ошибке
-        Write-Log "Не удалось отправить письмо: $($_.Exception.Message)" -Level ERROR
+        $errorMsg = "Не удалось отправить письмо: $($_.Exception.Message)"
+        Write-Host $errorMsg -ForegroundColor Red
         Write-Error "✗ Ошибка отправки почты: $($_.Exception.Message)"
         return $false
     }
@@ -1929,7 +2060,7 @@ function Get-BackupConfiguration {
         # Определение расширения архива
         $archiveExtension = switch ($archiverType) {
             "RAR" { ".rar" }
-            "7Z"  { ".7z" }
+            "7Z" { ".7z" }
             "ZIP" { ".zip" }
             default { ".rar" }
         }
@@ -2156,8 +2287,16 @@ foreach ($jobName in $config.Jobs.Keys) {
             throw "Источник не существует"
         }
 
+        # Создание каталога локального назначения если отсутствует
         if (-not (Test-Path $job.LocalDest)) {
             New-Item -Path $job.LocalDest -ItemType Directory -Force -ErrorAction Stop | Out-Null
+            Write-Log "Создан каталог локального назначения: $($job.LocalDest)" -Level INFO
+        }
+
+        # Создание каталога удаленного назначения если отсутствует (не источник!)
+        if ($job.RemoteDest -and (-not (Test-Path $job.RemoteDest))) {
+            New-Item -Path $job.RemoteDest -ItemType Directory -Force -ErrorAction Stop | Out-Null
+            Write-Log "Создан каталог удаленного назначения: $($job.RemoteDest)" -Level INFO
         }
 
         $fileInfo = Get-FileInfoDetails -Path $job.Source
@@ -2215,12 +2354,12 @@ foreach ($jobName in $config.Jobs.Keys) {
                     if ($listType -eq "csv") {
                         # CSV (разделитель ";" для корректного открытия в русском Excel)
                         $sourceFilesList | Select-Object RelativePath, Length, LastWriteTime | 
-                            Export-Csv -Path $listFilePath -NoTypeInformation -Encoding UTF8 -Delimiter ";"
+                        Export-Csv -Path $listFilePath -NoTypeInformation -Encoding UTF8 -Delimiter ";"
                     }
                     else {
                         # TXT (форматированная таблица для чтения)
                         $sourceFilesList | Select-Object RelativePath, Length, LastWriteTime | 
-                            Format-Table -AutoSize | Out-File -FilePath $listFilePath -Encoding UTF8
+                        Format-Table -AutoSize | Out-File -FilePath $listFilePath -Encoding UTF8
                     }
                     
                     Write-Log "Список файлов сохранен: $listFilePath ($($sourceFilesList.Count) шт.)" -ResultKey
@@ -2245,7 +2384,7 @@ foreach ($jobName in $config.Jobs.Keys) {
         if ([string]::IsNullOrEmpty($archiveType)) {
             $archiveType = switch ($config.Settings.ArchiverType) {
                 "RAR" { "rar" }
-                "7Z"  { "7z" }
+                "7Z" { "7z" }
                 "ZIP" { "zip" }
             }
         }
@@ -2260,29 +2399,43 @@ foreach ($jobName in $config.Jobs.Keys) {
 
         Write-Log "Начало архивации (Тип: $archiveType)..." -ResultKey
         
+        # Получение фильтра SourceFilter из конфигурации (если указан)
+        $sourceFilter = if ($job.ContainsKey('SourceFilter') -and -not [string]::IsNullOrWhiteSpace($job.SourceFilter)) {
+            $job.SourceFilter
+        }
+        else {
+            $null
+        }
+        
         # Архивация в зависимости от типа архиватора
         $arhResult = $null
         switch ($config.Settings.ArchiverType) {
             "RAR" {
-                $arhResult = Start-RarArchive -RarPath $config.Settings.ArchiverPath -ArchivePath $archivePath -SourcePath $job.Source -Parameters $archiverParams -LogPath $ArhLogPath
+                $arhResult = Start-RarArchive -RarPath $config.Settings.ArchiverPath -ArchivePath $archivePath -SourcePath $job.Source -Parameters $archiverParams -LogPath $ArhLogPath -SourceFilter $sourceFilter
             }
             "7Z" {
-                $arhResult = Start-7zArchive -SevenZipPath $config.Settings.ArchiverPath -ArchivePath $archivePath -SourcePath $job.Source -ArchiveType $archiveType -Parameters $archiverParams -LogPath $ArhLogPath
+                $arhResult = Start-7zArchive -SevenZipPath $config.Settings.ArchiverPath -ArchivePath $archivePath -SourcePath $job.Source -ArchiveType $archiveType -Parameters $archiverParams -LogPath $ArhLogPath -SourceFilter $sourceFilter
             }
             "ZIP" {
                 # Используем встроенные средства Windows для ZIP
                 try {
-                    Compress-Archive -Path (Join-Path $job.Source '*') -DestinationPath $archivePath -Force -ErrorAction Stop
+                    $zipSourcePath = if ($sourceFilter) {
+                        Join-Path $job.Source $sourceFilter
+                    }
+                    else {
+                        Join-Path $job.Source '*'
+                    }
+                    Compress-Archive -Path $zipSourcePath -DestinationPath $archivePath -Force -ErrorAction Stop
                     $arhResult = @{
-                        ExitCode = 0
-                        Duration = 0
+                        ExitCode    = 0
+                        Duration    = 0
                         ArchiveSize = [math]::Round((Get-Item $archivePath).Length / 1MB, 2)
                     }
                 }
                 catch {
                     $arhResult = @{
-                        ExitCode = 1
-                        Duration = 0
+                        ExitCode  = 1
+                        Duration  = 0
                         Exception = $_.Exception
                     }
                 }
@@ -2294,7 +2447,7 @@ foreach ($jobName in $config.Jobs.Keys) {
         if ($arhResult.ExitCode -ne 0) {
             $errorDesc = switch ($config.Settings.ArchiverType) {
                 "RAR" { Get-RarExitCodeMeaning -ExitCode $arhResult.ExitCode }
-                "7Z"  { Get-7zExitCodeMeaning -ExitCode $arhResult.ExitCode }
+                "7Z" { Get-7zExitCodeMeaning -ExitCode $arhResult.ExitCode }
                 "ZIP" { "Ошибка создания ZIP архива" }
             }
             Write-Log "Ошибка архиватора: $errorDesc" -Level ERROR
@@ -2324,7 +2477,7 @@ foreach ($jobName in $config.Jobs.Keys) {
                     $shell = New-Object -ComObject Shell.Application
                     $zip = $shell.NameSpace($archivePath)
                     $testResult = @{
-                        IsValid = ($zip -ne $null)
+                        IsValid  = ($null -ne $zip)
                         ExitCode = (if ($zip) { 0 } else { 1 })
                     }
                 }
@@ -2337,9 +2490,25 @@ foreach ($jobName in $config.Jobs.Keys) {
         if (-not $testResult.IsValid) { throw "Ошибка проверки целостности архива" }
 
         # ВЕРИФИКАЦИЯ ЦЕЛОСТНОСТИ АРХИВА
-
         try {
-            $sourceFiles = Get-FileList -Path $job.Source
+            # Получение фильтра SourceFilter из конфигурации (если указан)
+            $sourceFilter = if ($job.ContainsKey('SourceFilter') -and -not [string]::IsNullOrWhiteSpace($job.SourceFilter)) {
+                $job.SourceFilter
+            }
+            else {
+                $null
+            }
+
+            # Если указан SourceFilter, верифицируем только файлы по маске
+            if ($sourceFilter) {
+                Write-Log "ВЕРИФИКАЦИЯ по маске SourceFilter: $sourceFilter" -ResultKey
+                $sourceFiles = Get-FilterFileList -Path $job.Source -Filter $sourceFilter
+            }
+            else {
+                Write-Log "ВЕРИФИКАЦИЯ всех файлов источника" -ResultKey
+                $sourceFiles = Get-FileList -Path $job.Source
+            }
+
             $archiveFiles = Get-FileArhList -ArchiverType $config.Settings.ArchiverType -ArchiverPath $config.Settings.ArchiverPath -ArchivePath $archivePath
 
             if (-not $archiveFiles -or $archiveFiles.Count -eq 0) {
@@ -2367,8 +2536,8 @@ foreach ($jobName in $config.Jobs.Keys) {
 
         # Копирование в сеть
         if ($job.RemoteDest -and (Test-Path $job.RemoteDest)) {
-            Write-Log "Старт копирование из $archivePath в $remotePath "
             $remotePath = Join-Path $job.RemoteDest $job.Archive
+            Write-Log "Старт копирование из $archivePath в $remotePath"
             $copyResult = Copy-BackupFile -SourcePath $archivePath -DestinationPath $remotePath
 
             if ($copyResult.Success) {
@@ -2380,6 +2549,7 @@ foreach ($jobName in $config.Jobs.Keys) {
             else { throw "Контрольная сумма при копировании не совпадает" }
         }
         else {
+            $remotePath = Join-Path $job.RemoteDest $job.Archive
             Write-Log " $remotePath недоступен, сохранено локально." -Level WARNING
             $results[$jobName] = "ВНИМАНИЕ $archivePath сохранен только ЛОКАЛЬНО - Скопировать в Ручную!!! "
             $errorCount++
