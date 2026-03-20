@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     File Backup-Main-All.ps1
     Автономный скрипт резервного копирования (Версия 2.5)
@@ -74,7 +74,7 @@ $Script:CultureInvariant = [System.Globalization.CultureInfo]::InvariantCulture
 Clear-Host
 
 # ===========================================================
-# ФУНКЦИЯ ВЫЧИСЛЕНИЯ SHA256 ХЕША (совместимость с PowerShell 5.1)
+#region ФУНКЦИЯ ВЫЧИСЛЕНИЯ SHA256 ХЕША (совместимость с PowerShell 5.1)
 # ===========================================================
 <#
 .SYNOPSIS
@@ -156,6 +156,7 @@ function Get-FileHashCompat {
 if (-not (Get-Command Get-FileHash -ErrorAction SilentlyContinue)) {
     New-Alias -Name Get-FileHash -Value Get-FileHashCompat -Scope Global -Force
 }
+#endregion /ФУНКЦИЯ ВЫЧИСЛЕНИЯ SHA256 ХЕША (совместимость с PowerShell 5.1)
 
 # ===========================================================
 #region НАСТРОЙКИ БЕЗОПАСНОСТИ
@@ -163,7 +164,7 @@ if (-not (Get-Command Get-FileHash -ErrorAction SilentlyContinue)) {
 # Словарь конфигураций: ИмяФайла = ОжидаемыйHash
 $Script:ConfigHashes = @{
     'Backup-Config-All.json'     = 'DC6E9D71FF25F7933C2C123BB0C5809F7874FEFFB055A25F4E6830EA59EBC78C'  # По умолчанию конфигурация
-    'Backup-Config-All-rar.json' = 'C06752F24C071DCD0DD477E5136371DCB22F3C0D491F5F3154EE40B94243D4C6'  # RAR конфигурация (обновите хеш после изменения файла)
+    'Backup-Config-All-rar.json' = 'AE8DBAD1F693E1CBF5694208BDEA137DD73080BC68F3EC9F6DCD3EFCC1EAB906'  # RAR конфигурация (обновите хеш после изменения файла)
     'Backup-Config-All-7z.json'  = 'A85F2E0342CD3FAE83F65317145762D072223E77C279C71834734E8A84328A56'  # 7z конфигурация
 }
 
@@ -1321,6 +1322,379 @@ function Copy-BackupFile {
         EndTime         = $copyEnd
     }
 }
+
+<#
+.SYNOPSIS
+Архивирование отдельных файлов по маске
+.DESCRIPTION
+Создаёт отдельный архив для каждого файла, соответствующего маске.
+Имя архива формируется из имени исходного файла.
+Поддерживает RAR и 7z архиваторы.
+.PARAMETER ArchiverType
+Тип архиватора: RAR, 7Z, ZIP
+.PARAMETER ArchiverPath
+Путь к исполняемому файлу архиватора
+.PARAMETER SourcePath
+Путь к исходной директории
+.PARAMETER DestinationPath
+Путь к директории назначения архивов
+.PARAMETER FileFilter
+Маска файлов для архивирования (например: *.log.20*)
+.PARAMETER ArchivePattern
+Шаблон имени архива: {PCName}, {JobName}, {SourceFileName}
+.PARAMETER Parameters
+Параметры командной строки архиватора
+.PARAMETER LogPath
+Путь к файлу лога (опционально)
+.OUTPUTS
+[object[]] Коллекция результатов архивирования для каждого файла
+.EXAMPLE
+$result = Start-IndividualFileArchive -ArchiverType "RAR" -ArchiverPath "C:\work\rar.exe" -SourcePath "C:\src" -DestinationPath "C:\dst" -FileFilter "*.log.20*" -ArchivePattern "{PCName}_{JobName}_{SourceFileName}.rar" -Parameters @("a", "-m3")
+#>
+function Start-IndividualFileArchive {
+[CmdletBinding()]
+[OutputType([object[]])]
+param(
+    [Parameter(Mandatory = $true)][ValidateSet('RAR', '7Z', 'ZIP')][string]$ArchiverType,
+    [Parameter(Mandatory = $true)][string]$ArchiverPath,
+    [Parameter(Mandatory = $true)][string]$SourcePath,
+    [Parameter(Mandatory = $true)][string]$DestinationPath,
+    [Parameter(Mandatory = $true)][string]$FileFilter,
+    [Parameter(Mandatory = $true)][string]$ArchivePattern,
+    [Parameter(Mandatory = $false)][string[]]$Parameters,
+    [Parameter(Mandatory = $false)][string]$LogPath,
+    [Parameter(Mandatory = $false)][string]$PCName,
+    [Parameter(Mandatory = $false)][string]$JobName
+)
+process {
+    $results = @()
+    $archiveExtension = switch ($ArchiverType) {
+        'RAR' { '.rar' }
+        '7Z'  { '.7z' }
+        'ZIP' { '.zip' }
+        default { '.rar' }
+    }
+    
+    Write-Log "Поиск файлов для индивидуальной архивации по маске: $FileFilter" -Level INFO -ResultKey
+    
+    $files = Get-FilterFileList -Path $SourcePath -Filter $FileFilter
+    
+    if ($files.Count -eq 0) {
+        Write-Log "Файлы по маске '$FileFilter' не найдены" -Level WARNING -ResultKey
+        return $results
+    }
+    
+    Write-Log "Найдено файлов для архивации: $($files.Count)" -Level INFO -ResultKey
+    
+    if (-not (Test-Path -LiteralPath $DestinationPath -PathType Container)) {
+        New-Item -Path $DestinationPath -ItemType Directory -Force -ErrorAction Stop | Out-Null
+    }
+    
+    $successCount = 0
+    $errorCount = 0
+    
+    foreach ($file in $files) {
+        $fileStart = Get-Date
+        $sourceFileName = Split-Path -Path $file.RelativePath -Leaf
+        $sourceFilePath = $file.FullName
+        
+        # Формирование имени архива
+        $archiveName = $ArchivePattern
+        $archiveName = $archiveName -replace '{PCName}', $PCName
+        $archiveName = $archiveName -replace '{JobName}', $JobName
+        $archiveName = $archiveName -replace '{SourceFileName}', $sourceFileName
+        
+        # Удаление недопустимых символов из имени архива
+        $archiveName = $archiveName -replace '[\\/:*?"<>|]', '_'
+        
+        if ($archiveName -notmatch '\.(rar|7z|zip)$') {
+            $archiveName = $archiveName + $archiveExtension
+        }
+        
+        $archivePath = Join-Path -Path $DestinationPath -ChildPath $archiveName
+        
+        Write-Log "Архивация файла: ${sourceFileName} -> $archiveName" -Level INFO
+        
+        try {
+            $arhResult = $null
+            
+            switch ($ArchiverType) {
+                'RAR' {
+                    $arhResult = Start-RarArchive -RarPath $ArchiverPath -ArchivePath $archivePath -SourcePath $sourceFilePath -Parameters $Parameters -LogPath $null
+                }
+                '7Z' {
+                    $archiveType = [System.IO.Path]::GetExtension($archivePath).TrimStart('.')
+                    $arhResult = Start-7zArchive -SevenZipPath $ArchiverPath -ArchivePath $archivePath -SourcePath $sourceFilePath -ArchiveType $archiveType -Parameters $Parameters -LogPath $null
+                }
+                'ZIP' {
+                    try {
+                        Compress-Archive -Path $sourceFilePath -DestinationPath $archivePath -Force -ErrorAction Stop
+                        $arhResult = @{
+                            ExitCode    = 0
+                            Duration    = 0
+                            ArchiveSize = [math]::Round((Get-Item $archivePath).Length / 1MB, 2)
+                        }
+                    }
+                    catch {
+                        $arhResult = @{
+                            ExitCode  = 1
+                            Duration  = 0
+                            Exception = $_.Exception
+                        }
+                    }
+                }
+            }
+            
+            $fileEnd = Get-Date
+            $fileDuration = [math]::Round(($fileEnd - $fileStart).TotalSeconds, 2)
+            
+            if ($arhResult.ExitCode -eq 0) {
+                Write-Log "Успешно: $archiveName ($($arhResult.ArchiveSize) МБ, $($fileDuration) сек)" -Level SUCCESS -ResultKey
+                $successCount++
+                $results += [PSCustomObject]@{
+                    SourceFile   = $sourceFileName
+                    ArchivePath  = $archivePath
+                    ArchiveSize  = $arhResult.ArchiveSize
+                    Duration     = $fileDuration
+                    Status       = 'Success'
+                    ExitCode     = $arhResult.ExitCode
+                }
+            }
+            else {
+                $errorDesc = switch ($ArchiverType) {
+                    'RAR' { Get-RarExitCodeMeaning -ExitCode $arhResult.ExitCode }
+                    '7Z'  { Get-7zExitCodeMeaning -ExitCode $arhResult.ExitCode }
+                    'ZIP' { 'Ошибка создания ZIP архива' }
+                }
+                # ✅ ИСПРАВЛЕНО: ${sourceFileName} вместо $sourceFileName:
+                Write-Log "Ошибка архивации ${sourceFileName}: $errorDesc" -Level ERROR -ResultKey
+                $errorCount++
+                $results += [PSCustomObject]@{
+                    SourceFile   = $sourceFileName
+                    ArchivePath  = $archivePath
+                    ArchiveSize  = 0
+                    Duration     = $fileDuration
+                    Status       = 'Error'
+                    ExitCode     = $arhResult.ExitCode
+                    ErrorMessage = $errorDesc
+                }
+            }
+        }
+        catch {
+            $fileEnd = Get-Date
+            $fileDuration = [math]::Round(($fileEnd - $fileStart).TotalSeconds, 2)
+            # ✅ ИСПРАВЛЕНО: ${sourceFileName} вместо $sourceFileName:
+            Write-Log "Критическая ошибка при архивации ${sourceFileName}: $($_.Exception.Message)" -Level ERROR -ResultKey
+            $errorCount++
+            $results += [PSCustomObject]@{
+                SourceFile   = $sourceFileName
+                ArchivePath  = $archivePath
+                ArchiveSize  = 0
+                Duration     = $fileDuration
+                Status       = 'Error'
+                ExitCode     = 255
+                ErrorMessage = $_.Exception.Message
+            }
+        }
+    }
+    
+    Write-Log "Индивидуальная архивация завершена: Успешно=$successCount, Ошибки=$errorCount" -Level INFO -ResultKey
+    
+    return $results
+}
+}
+
+<#
+.SYNOPSIS
+Архивирование отдельных подпапок по маске
+.DESCRIPTION
+Создаёт отдельный архив для каждой подпапки первого уровня в источнике.
+Имя архива формируется из имени подпапки.
+Поддерживает RAR, 7Z и ZIP архиваторы.
+.PARAMETER ArchiverType
+Тип архиватора: RAR, 7Z, ZIP
+.PARAMETER ArchiverPath
+Путь к исполняемому файлу архиватора
+.PARAMETER SourcePath
+Путь к исходной директории
+.PARAMETER DestinationPath
+Путь к директории назначения архивов
+.PARAMETER FolderFilter
+Маска для фильтрации подпапок (опционально, например: "20*")
+.PARAMETER ArchivePattern
+Шаблон имени архива: {PCName}, {JobName}, {SourceFolderName}
+.PARAMETER Parameters
+Параметры командной строки архиватора
+.PARAMETER LogPath
+Путь к файлу лога архиватора (опционально)
+.PARAMETER PCName
+Имя компьютера для подстановки в шаблон
+.PARAMETER JobName
+Имя задания для подстановки в шаблон
+.OUTPUTS
+[object[]] Коллекция результатов архивирования для каждой папки
+.EXAMPLE
+$result = Start-IndividualFolderArchive -ArchiverType "RAR" -ArchiverPath "C:\work\rar.exe" -SourcePath "C:\src\JOB3" -DestinationPath "C:\dst\JOB3" -ArchivePattern "{PCName}_{JobName}_{SourceFolderName}.rar" -Parameters @("a", "-m3", "-r") -PCName "SERVER01" -JobName "JOB3"
+#>
+function Start-IndividualFolderArchive {
+[CmdletBinding()]
+[OutputType([object[]])]
+param(
+    [Parameter(Mandatory = $true)][ValidateSet('RAR', '7Z', 'ZIP')][string]$ArchiverType,
+    [Parameter(Mandatory = $true)][string]$ArchiverPath,
+    [Parameter(Mandatory = $true)][string]$SourcePath,
+    [Parameter(Mandatory = $true)][string]$DestinationPath,
+    [Parameter(Mandatory = $true)][string]$ArchivePattern,
+    [Parameter(Mandatory = $false)][string]$FolderFilter,
+    [Parameter(Mandatory = $false)][string[]]$Parameters,
+    [Parameter(Mandatory = $false)][string]$LogPath,
+    [Parameter(Mandatory = $false)][string]$PCName,
+    [Parameter(Mandatory = $false)][string]$JobName
+)
+process {
+    $results = @()
+    $archiveExtension = switch ($ArchiverType) {
+        'RAR' { '.rar' }
+        '7Z'  { '.7z' }
+        'ZIP' { '.zip' }
+        default { '.rar' }
+    }
+    
+    Write-Log "Поиск подпапок для индивидуальной архивации в: $SourcePath" -Level INFO -ResultKey
+    
+    # Получение списка подпапок первого уровня
+    $folders = Get-ChildItem -Path $SourcePath -Directory -ErrorAction SilentlyContinue
+    
+    # Фильтрация по маске если указана
+    if (-not [string]::IsNullOrWhiteSpace($FolderFilter)) {
+        $folders = $folders | Where-Object { $_.Name -like $FolderFilter }
+        Write-Log "Применён фильтр папок: $FolderFilter (найдено $($folders.Count))" -Level INFO
+    }
+    
+    if ($folders.Count -eq 0) {
+        Write-Log "Подпапки для архивации не найдены" -Level WARNING -ResultKey
+        return $results
+    }
+    
+    Write-Log "Найдено подпапок для архивации: $($folders.Count)" -Level INFO -ResultKey
+    
+    # Создание директории назначения если не существует
+    if (-not (Test-Path -LiteralPath $DestinationPath -PathType Container)) {
+        New-Item -Path $DestinationPath -ItemType Directory -Force -ErrorAction Stop | Out-Null
+    }
+    
+    $successCount = 0
+    $errorCount = 0
+    
+    foreach ($folder in $folders) {
+        $folderStart = Get-Date
+        $folderName = $folder.Name
+        $folderPath = $folder.FullName
+        
+        # Формирование имени архива
+        $archiveName = $ArchivePattern
+        $archiveName = $archiveName -replace '{PCName}', $PCName
+        $archiveName = $archiveName -replace '{JobName}', $JobName
+        $archiveName = $archiveName -replace '{SourceFolderName}', $folderName
+        
+        # Удаление недопустимых символов из имени архива
+        $archiveName = $archiveName -replace '[\\/:*?"<>|]', '_'
+        
+        # Добавление расширения если отсутствует
+        if ($archiveName -notmatch '\.(rar|7z|zip)$') {
+            $archiveName = $archiveName + $archiveExtension
+        }
+        
+        $archivePath = Join-Path -Path $DestinationPath -ChildPath $archiveName
+        
+        Write-Log "Архивация папки: ${folderName} -> $archiveName" -Level INFO
+        
+        try {
+            $arhResult = $null
+            
+            switch ($ArchiverType) {
+                'RAR' {
+                    $arhResult = Start-RarArchive -RarPath $ArchiverPath -ArchivePath $archivePath -SourcePath $folderPath -Parameters $Parameters -LogPath $null
+                }
+                '7Z' {
+                    $archiveType = [System.IO.Path]::GetExtension($archivePath).TrimStart('.')
+                    $arhResult = Start-7zArchive -SevenZipPath $ArchiverPath -ArchivePath $archivePath -SourcePath $folderPath -ArchiveType $archiveType -Parameters $Parameters -LogPath $null
+                }
+                'ZIP' {
+                    try {
+                        Compress-Archive -Path (Join-Path $folderPath '*') -DestinationPath $archivePath -Force -ErrorAction Stop
+                        $arhResult = @{
+                            ExitCode    = 0
+                            Duration    = 0
+                            ArchiveSize = [math]::Round((Get-Item $archivePath).Length / 1MB, 2)
+                        }
+                    }
+                    catch {
+                        $arhResult = @{
+                            ExitCode  = 1
+                            Duration  = 0
+                            Exception = $_.Exception
+                        }
+                    }
+                }
+            }
+            
+            $folderEnd = Get-Date
+            $folderDuration = [math]::Round(($folderEnd - $folderStart).TotalSeconds, 2)
+            
+            if ($arhResult.ExitCode -eq 0) {
+                Write-Log "Успешно: $archiveName ($($arhResult.ArchiveSize) МБ, $($folderDuration) сек)" -Level SUCCESS -ResultKey
+                $successCount++
+                $results += [PSCustomObject]@{
+                    SourceFolder = $folderName
+                    ArchivePath  = $archivePath
+                    ArchiveSize  = $arhResult.ArchiveSize
+                    Duration     = $folderDuration
+                    Status       = 'Success'
+                    ExitCode     = $arhResult.ExitCode
+                }
+            }
+            else {
+                $errorDesc = switch ($ArchiverType) {
+                    'RAR' { Get-RarExitCodeMeaning -ExitCode $arhResult.ExitCode }
+                    '7Z'  { Get-7zExitCodeMeaning -ExitCode $arhResult.ExitCode }
+                    'ZIP' { 'Ошибка создания ZIP архива' }
+                }
+                Write-Log "Ошибка архивации ${folderName}: $errorDesc" -Level ERROR -ResultKey
+                $errorCount++
+                $results += [PSCustomObject]@{
+                    SourceFolder = $folderName
+                    ArchivePath  = $archivePath
+                    ArchiveSize  = 0
+                    Duration     = $folderDuration
+                    Status       = 'Error'
+                    ExitCode     = $arhResult.ExitCode
+                    ErrorMessage = $errorDesc
+                }
+            }
+        }
+        catch {
+            $folderEnd = Get-Date
+            $folderDuration = [math]::Round(($folderEnd - $folderStart).TotalSeconds, 2)
+            Write-Log "Критическая ошибка при архивации ${folderName}: $($_.Exception.Message)" -Level ERROR -ResultKey
+            $errorCount++
+            $results += [PSCustomObject]@{
+                SourceFolder = $folderName
+                ArchivePath  = $archivePath
+                ArchiveSize  = 0
+                Duration     = $folderDuration
+                Status       = 'Error'
+                ExitCode     = 255
+                ErrorMessage = $_.Exception.Message
+            }
+        }
+    }
+    
+    Write-Log "Индивидуальная архивация папок завершена: Успешно=$successCount, Ошибки=$errorCount" -Level INFO -ResultKey
+    
+    return $results
+}
+}
 #endregion /ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ АРХИВАЦИИ
 
 # ==============================================================================
@@ -2374,6 +2748,240 @@ foreach ($jobName in $config.Jobs.Keys) {
         }
         # === КОНЕЦ БЛОКА БЛОК: Формирование списка файлов источника (TXT или CSV) ===
 
+        #region
+        # === БЛОК: Индивидуальная архивация файлов ===
+        $archiveIndividual = $false
+        if ($job.ContainsKey('ArchiveIndividualFiles')) {
+            $archiveIndividual = [System.Convert]::ToBoolean($job.ArchiveIndividualFiles)
+        }
+
+        if ($archiveIndividual) {
+            Write-LogSection "ИНДИВИДУАЛЬНАЯ АРХИВАЦИЯ ФАЙЛОВ" -ResultKey
+            Write-Log "Режим: Каждый файл в отдельный архив" -ResultKey
+            
+            # Проверка обязательных параметров
+            if ([string]::IsNullOrWhiteSpace($job.SourceFilter)) {
+                Write-Log "ОШИБКА: Для индивидуальной архивации требуется параметр SourceFilter" -Level ERROR -ResultKey
+                throw "Для индивидуальной архивации требуется параметр SourceFilter"
+            }
+            
+            # Определение параметров архивации
+            $archiverParams = if ($job.ArhParameters) { $job.ArhParameters } else { $config.Settings.ArchiverParams }
+            
+            # Формирование шаблона имени архива
+            $individualArchivePattern = "{PCName}_{JobName}_{SourceFileName}.rar"
+            if ($job.ContainsKey('IndividualArchivePattern') -and -not [string]::IsNullOrWhiteSpace($job.IndividualArchivePattern)) {
+                $individualArchivePattern = $job.IndividualArchivePattern
+            }
+            
+            # Запуск индивидуальной архивации
+            $individualResults = Start-IndividualFileArchive `
+                -ArchiverType $config.Settings.ArchiverType `
+                -ArchiverPath $config.Settings.ArchiverPath `
+                -SourcePath $job.Source `
+                -DestinationPath $job.LocalDest `
+                -FileFilter $job.SourceFilter `
+                -ArchivePattern $individualArchivePattern `
+                -Parameters $archiverParams `
+                -PCName $config.Settings.PCName `
+                -JobName $jobName `
+                -LogPath $(if ($job.ArhLog) { Join-Path $job.LocalDest "individual_archiver.log" } else { $null })
+            
+            # Обработка результатов
+            $successFiles = ($individualResults | Where-Object { $_.Status -eq 'Success' }).Count
+            $errorFiles = ($individualResults | Where-Object { $_.Status -eq 'Error' }).Count
+            
+            if ($errorFiles -gt 0) {
+                Write-Log "Индивидуальная архивация завершена с ошибками: $errorFiles из $($individualResults.Count)" -Level ERROR -ResultKey
+                $errorCount += $errorFiles
+                $results[$jobName] = "Частичный успех: $successFiles/$($individualResults.Count) файлов"
+            }
+            else {
+                Write-Log "Индивидуальная архивация завершена успешно: $($individualResults.Count) файлов" -Level SUCCESS -ResultKey
+                $successCount++
+                $results[$jobName] = "Успешно: $($individualResults.Count) архивов"
+            }
+            
+            # Копирование в сеть (если включено)
+            if ($job.RemoteDest -and (Test-Path $job.RemoteDest)) {
+                Write-Log "Копирование архивов в сетевое хранилище..." -Level INFO
+                
+                foreach ($archiveResult in $individualResults) {
+                    if ($archiveResult.Status -eq 'Success' -and (Test-Path $archiveResult.ArchivePath)) {
+                        $remotePath = Join-Path $job.RemoteDest (Split-Path $archiveResult.ArchivePath -Leaf)
+                        try {
+                            $copyResult = Copy-BackupFile -SourcePath $archiveResult.ArchivePath -DestinationPath $remotePath
+                            if ($copyResult.Success) {
+                                Write-Log "Копирование успешно: $(Split-Path $archiveResult.ArchivePath -Leaf)" -Level SUCCESS
+                            }
+                            else {
+                                Write-Log "Ошибка копирования: $(Split-Path $archiveResult.ArchivePath -Leaf)" -Level ERROR
+                            }
+                        }
+                        catch {
+                            Write-Log "Ошибка копирования $($_.Exception.Message)" -Level ERROR
+                        }
+                    }
+                }
+                
+                # Ротация удалённого хранилища
+                if ($job.RemoveRemoteDestFlag) {
+                    Write-Log "Ротация удалённого хранилища..." -Level INFO
+                    try {
+                        Remove-OldFiles -Path $job.RemoteDest -DaysOld $job.RemoteDestDaysOld -KeepCount $job.RemoteDestKeepCount -Filter "*.*"
+                    }
+                    catch {
+                        Write-Log "Ошибка ротации удалённого хранилища: $_" -Level WARNING
+                    }
+                }
+            }
+            
+            # Ротация источника (если включено)
+            if ($job.RemoveSourceFlag) {
+                Write-Log "Ротация источника..." -Level INFO
+                try {
+                    Remove-OldFiles -Path $job.Source -DaysOld $job.SourceDaysOld -KeepCount $job.SourceKeepCount -Filter $job.SourceFilter
+                }
+                catch {
+                    Write-Log "Ошибка ротации источника: $_" -Level WARNING
+                }
+            }
+            
+            Write-LogSection "ИНДИВИДУАЛЬНАЯ АРХИВАЦИЯ ЗАВЕРШЕНА" -ResultKey
+            
+            # Пропускаем стандартную архивацию для этого задания
+            continue
+        }
+        # === КОНЕЦ БЛОКА: Индивидуальная архивация файлов ===
+        #endregion
+        
+		#region
+		        # === БЛОК: Индивидуальная архивация подпапок ===
+        $archiveIndividualFolders = $false
+        if ($job.ContainsKey('ArchiveIndividualFolders')) {
+            $archiveIndividualFolders = [System.Convert]::ToBoolean($job.ArchiveIndividualFolders)
+        }
+
+        if ($archiveIndividualFolders) {
+            Write-LogSection "ИНДИВИДУАЛЬНАЯ АРХИВАЦИЯ ПОДПАПОК" -ResultKey
+            Write-Log "Режим: Каждая подпапка в отдельный архив" -ResultKey
+            
+            # Определение параметров архивации
+            $archiverParams = if ($job.ArhParameters) { $job.ArhParameters } else { $config.Settings.ArchiverParams }
+            
+            # Формирование шаблона имени архива
+            $individualArchivePattern = "{PCName}_{JobName}_{SourceFolderName}.rar"
+            if ($job.ContainsKey('IndividualArchivePattern') -and -not [string]::IsNullOrWhiteSpace($job.IndividualArchivePattern)) {
+                $individualArchivePattern = $job.IndividualArchivePattern
+            }
+            
+            # Получение фильтра папок (опционально)
+            $folderFilter = if ($job.ContainsKey('SourceFilter') -and -not [string]::IsNullOrWhiteSpace($job.SourceFilter)) {
+                $job.SourceFilter
+            }
+            else {
+                $null
+            }
+            
+            # Запуск индивидуальной архивации подпапок
+            $individualResults = Start-IndividualFolderArchive `
+                -ArchiverType $config.Settings.ArchiverType `
+                -ArchiverPath $config.Settings.ArchiverPath `
+                -SourcePath $job.Source `
+                -DestinationPath $job.LocalDest `
+                -ArchivePattern $individualArchivePattern `
+                -FolderFilter $folderFilter `
+                -Parameters $archiverParams `
+                -PCName $config.Settings.PCName `
+                -JobName $jobName `
+                -LogPath $(if ($job.ArhLog) { Join-Path $job.LocalDest "folder_archiver.log" } else { $null })
+            
+            # Обработка результатов
+            $successFolders = ($individualResults | Where-Object { $_.Status -eq 'Success' }).Count
+            $errorFolders = ($individualResults | Where-Object { $_.Status -eq 'Error' }).Count
+            
+            if ($errorFolders -gt 0) {
+                Write-Log "Индивидуальная архивация завершена с ошибками: $errorFolders из $($individualResults.Count)" -Level ERROR -ResultKey
+                $errorCount += $errorFolders
+                $results[$jobName] = "Частичный успех: $successFolders/$($individualResults.Count) папок"
+            }
+            else {
+                Write-Log "Индивидуальная архивация завершена успешно: $($individualResults.Count) папок" -Level SUCCESS -ResultKey
+                $successCount++
+                $results[$jobName] = "Успешно: $($individualResults.Count) архивов"
+            }
+            
+            # Копирование в сеть (если включено)
+            if ($job.RemoteDest -and (Test-Path $job.RemoteDest)) {
+                Write-Log "Копирование архивов в сетевое хранилище..." -Level INFO
+                
+                foreach ($archiveResult in $individualResults) {
+                    if ($archiveResult.Status -eq 'Success' -and (Test-Path $archiveResult.ArchivePath)) {
+                        $remotePath = Join-Path $job.RemoteDest (Split-Path $archiveResult.ArchivePath -Leaf)
+                        try {
+                            $copyResult = Copy-BackupFile -SourcePath $archiveResult.ArchivePath -DestinationPath $remotePath
+                            if ($copyResult.Success) {
+                                Write-Log "Копирование успешно: $(Split-Path $archiveResult.ArchivePath -Leaf)" -Level SUCCESS
+                            }
+                            else {
+                                Write-Log "Ошибка копирования: $(Split-Path $archiveResult.ArchivePath -Leaf)" -Level ERROR
+                            }
+                        }
+                        catch {
+                            Write-Log "Ошибка копирования $($_.Exception.Message)" -Level ERROR
+                        }
+                    }
+                }
+                
+                # Ротация удалённого хранилища
+                if ($job.RemoveRemoteDestFlag) {
+                    Write-Log "Ротация удалённого хранилища..." -Level INFO
+                    try {
+                        Remove-OldFiles -Path $job.RemoteDest -DaysOld $job.RemoteDestDaysOld -KeepCount $job.RemoteDestKeepCount -Filter "*.*"
+                    }
+                    catch {
+                        Write-Log "Ошибка ротации удалённого хранилища: $_" -Level WARNING
+                    }
+                }
+            }
+            
+            # Ротация локального хранилища
+            Write-Log "Ротация локального хранилища..." -Level INFO
+            try {
+                Remove-OldFiles -Path $job.LocalDest -DaysOld $job.LocalDestDaysOld -KeepCount $job.LocalDestKeepCount -Filter "*.*"
+            }
+            catch {
+                Write-Log "Ошибка ротации локального хранилища: $_" -Level WARNING
+            }
+            
+            # Ротация источника (если включено)
+            if ($job.RemoveSourceFlag) {
+                Write-Log "Ротация источника..." -Level INFO
+                try {
+                    # Удаляем только заархивированные папки
+                    foreach ($archiveResult in $individualResults) {
+                        if ($archiveResult.Status -eq 'Success') {
+                            $folderPath = Join-Path $job.Source $archiveResult.SourceFolder
+                            if (Test-Path $folderPath) {
+                                Remove-Item -Path $folderPath -Recurse -Force
+                                Write-Log "Удалена папка источника: $($archiveResult.SourceFolder)" -Level INFO
+                            }
+                        }
+                    }
+                }
+                catch {
+                    Write-Log "Ошибка ротации источника: $_" -Level WARNING
+                }
+            }
+            
+            Write-LogSection "ИНДИВИДУАЛЬНАЯ АРХИВАЦИЯ ПОДПАПОК ЗАВЕРШЕНА" -ResultKey
+            
+            # Пропускаем стандартную архивацию для этого задания
+            continue
+        }
+        # === КОНЕЦ БЛОКА: Индивидуальная архивация подпапок ===
+        #endregion
+
         $archivePath = Join-Path $job.LocalDest $job.Archive
 
         # Определение параметров архивации
@@ -2559,7 +3167,7 @@ foreach ($jobName in $config.Jobs.Keys) {
         if ($job.RemoveSourceFlag) {
             Write-Log "Ротация источника: $($job.Source) (DaysOld: $($job.SourceDaysOld), KeepCount: $($job.SourceKeepCount))"
             try {
-                Remove-OldFiles -Path $job.Source -DaysOld $job.SourceDaysOld -KeepCount $job.SourceKeepCount -Filter "*.*"
+                Remove-OldFiles -Path $job.Source -DaysOld $job.SourceDaysOld -KeepCount $job.SourceKeepCount -Filter $job.SourceFilter
             }
             catch { Write-Log "Ошибка ротации источника: $_" -Level WARNING }
         }
@@ -2586,7 +3194,7 @@ foreach ($jobName in $config.Jobs.Keys) {
 # Очистка логов
 Write-LogSection "ОЧИСТКА СТАРЫХ ЛОГОВ"
 try {
-    Remove-OldFiles -Path $config.Settings.LogPath -DaysOld $LogDaysOld -KeepCount $LogKeepCount -Filter "*.log"
+    Remove-OldFiles -Path $config.Settings.LogPath -DaysOld $LogDaysOld -KeepCount $LogKeepCount -Filter "*.*"
 }
 catch { Write-Log "Ошибка очистки логов: $_" -Level WARNING }
 
