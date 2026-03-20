@@ -39,7 +39,7 @@
     "AdminMail": "user3@head.localdomain.loc"
   },
   "Integrity": {
-    "RarExeHash": "A7A155934662984A5063D8D9215DC5E226AA12F4E04FCA932574EA075E32DD3A",
+    "RarExeHash": "2CE9D9F8CD10E8CEB3A943E1464938ECAB682313F8E4525DF17068B3EAE5B05B",
     "SevenZipExeHash": "4CD7D776C686427226A151789D2D61F0B2ED2C392148CC4E69C0238362FAFECF"
   },
   "Jobs": [
@@ -75,33 +75,22 @@
       ],
       "ArhLog": true
     },
-    {
-      "Name": "JOB2",
+	{
+      "Name": "Folders_to_Arh",
       "Source": "C:\\Work\\BackupAllJson\\src\\JOB2\\",
-      "SourceFilter": "*.log",
-      "RemoveSourceFlag": false,
-      "SourceDaysOld": 2,
-      "SourceKeepCount": 301,
-      "ArchivePattern": "{PCName}_{JobName}_{Date_Time}.rar",
+	  "ArchiveIndividualFolders": true,
+	  "IndividualArchivePattern": "{PCName}_{JobName}_{SourceFolderName}.rar",
+	  "RemoveSourceFlag": true,
+	  "SourceDaysOld": 0,
+	  "SourceKeepCount": 0,
       "LocalDest": "C:\\Work\\BackupAllJson\\dst\\Local\\JOB2\\",
-      "LocalDestDaysOld": 2,
-      "LocalDestKeepCount": 1,
+      "LocalDestDaysOld": 7,
+      "LocalDestKeepCount": 7,
       "RemoteDest": "C:\\Work\\BackupAllJson\\dst\\Remote\\",
-      "RemoveRemoteDestFlag": true,
-      "RemoteDestDaysOld": 31,
-      "RemoteDestKeepCount": 30,
-      "ArhParameters": [
-        "a",
-        "-m3",
-        "-s",
-        "-ep1",
-        "-dh",
-        "-rr1p",
-        "-r"
-      ],
+      "RemoveRemoteDestFlag": false,
       "ArhLog": true
     },
-    {
+	{
       "Name": "JOB3",
       "Source": "C:\\Work\\BackupAllJson\\src\\JOB3\\",
       "RemoveSourceFlag": false,
