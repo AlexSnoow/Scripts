@@ -46,7 +46,7 @@
     powershell.exe -executionpolicy RemoteSigned -file .\Backup-Main-All.ps1
 
 .NOTES
-    Автор: Тюкавкин
+    Автор: 
     Версия: 2.5
     Дата: 2026-03-19
 
@@ -1352,122 +1352,139 @@ function Copy-BackupFile {
 $result = Start-IndividualFileArchive -ArchiverType "RAR" -ArchiverPath "C:\work\rar.exe" -SourcePath "C:\src" -DestinationPath "C:\dst" -FileFilter "*.log.20*" -ArchivePattern "{PCName}_{JobName}_{SourceFileName}.rar" -Parameters @("a", "-m3")
 #>
 function Start-IndividualFileArchive {
-[CmdletBinding()]
-[OutputType([object[]])]
-param(
-    [Parameter(Mandatory = $true)][ValidateSet('RAR', '7Z', 'ZIP')][string]$ArchiverType,
-    [Parameter(Mandatory = $true)][string]$ArchiverPath,
-    [Parameter(Mandatory = $true)][string]$SourcePath,
-    [Parameter(Mandatory = $true)][string]$DestinationPath,
-    [Parameter(Mandatory = $true)][string]$FileFilter,
-    [Parameter(Mandatory = $true)][string]$ArchivePattern,
-    [Parameter(Mandatory = $false)][string[]]$Parameters,
-    [Parameter(Mandatory = $false)][string]$LogPath,
-    [Parameter(Mandatory = $false)][string]$PCName,
-    [Parameter(Mandatory = $false)][string]$JobName
-)
-process {
-    $results = @()
-    $archiveExtension = switch ($ArchiverType) {
-        'RAR' { '.rar' }
-        '7Z'  { '.7z' }
-        'ZIP' { '.zip' }
-        default { '.rar' }
-    }
-    
-    Write-Log "Поиск файлов для индивидуальной архивации по маске: $FileFilter" -Level INFO -ResultKey
-    
-    $files = Get-FilterFileList -Path $SourcePath -Filter $FileFilter
-    
-    if ($files.Count -eq 0) {
-        Write-Log "Файлы по маске '$FileFilter' не найдены" -Level WARNING -ResultKey
-        return $results
-    }
-    
-    Write-Log "Найдено файлов для архивации: $($files.Count)" -Level INFO -ResultKey
-    
-    if (-not (Test-Path -LiteralPath $DestinationPath -PathType Container)) {
-        New-Item -Path $DestinationPath -ItemType Directory -Force -ErrorAction Stop | Out-Null
-    }
-    
-    $successCount = 0
-    $errorCount = 0
-    
-    foreach ($file in $files) {
-        $fileStart = Get-Date
-        $sourceFileName = Split-Path -Path $file.RelativePath -Leaf
-        $sourceFilePath = $file.FullName
-        
-        # Формирование имени архива
-        $archiveName = $ArchivePattern
-        $archiveName = $archiveName -replace '{PCName}', $PCName
-        $archiveName = $archiveName -replace '{JobName}', $JobName
-        $archiveName = $archiveName -replace '{SourceFileName}', $sourceFileName
-        
-        # Удаление недопустимых символов из имени архива
-        $archiveName = $archiveName -replace '[\\/:*?"<>|]', '_'
-        
-        if ($archiveName -notmatch '\.(rar|7z|zip)$') {
-            $archiveName = $archiveName + $archiveExtension
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param(
+        [Parameter(Mandatory = $true)][ValidateSet('RAR', '7Z', 'ZIP')][string]$ArchiverType,
+        [Parameter(Mandatory = $true)][string]$ArchiverPath,
+        [Parameter(Mandatory = $true)][string]$SourcePath,
+        [Parameter(Mandatory = $true)][string]$DestinationPath,
+        [Parameter(Mandatory = $true)][string]$FileFilter,
+        [Parameter(Mandatory = $true)][string]$ArchivePattern,
+        [Parameter(Mandatory = $false)][string[]]$Parameters,
+        [Parameter(Mandatory = $false)][string]$LogPath,
+        [Parameter(Mandatory = $false)][string]$PCName,
+        [Parameter(Mandatory = $false)][string]$JobName
+    )
+    process {
+        $results = @()
+        $archiveExtension = switch ($ArchiverType) {
+            'RAR' { '.rar' }
+            '7Z' { '.7z' }
+            'ZIP' { '.zip' }
+            default { '.rar' }
         }
+    
+        Write-Log "Поиск файлов для индивидуальной архивации по маске: $FileFilter" -Level INFO -ResultKey
+    
+        $files = Get-FilterFileList -Path $SourcePath -Filter $FileFilter
+    
+        if ($files.Count -eq 0) {
+            Write-Log "Файлы по маске '$FileFilter' не найдены" -Level WARNING -ResultKey
+            return $results
+        }
+    
+        Write-Log "Найдено файлов для архивации: $($files.Count)" -Level INFO -ResultKey
+    
+        if (-not (Test-Path -LiteralPath $DestinationPath -PathType Container)) {
+            New-Item -Path $DestinationPath -ItemType Directory -Force -ErrorAction Stop | Out-Null
+        }
+    
+        $successCount = 0
+        $errorCount = 0
+    
+        foreach ($file in $files) {
+            $fileStart = Get-Date
+            $sourceFileName = Split-Path -Path $file.RelativePath -Leaf
+            $sourceFilePath = $file.FullName
         
-        $archivePath = Join-Path -Path $DestinationPath -ChildPath $archiveName
+            # Формирование имени архива
+            $archiveName = $ArchivePattern
+            $archiveName = $archiveName -replace '{PCName}', $PCName
+            $archiveName = $archiveName -replace '{JobName}', $JobName
+            $archiveName = $archiveName -replace '{SourceFileName}', $sourceFileName
         
-        Write-Log "Архивация файла: ${sourceFileName} -> $archiveName" -Level INFO
+            # Удаление недопустимых символов из имени архива
+            $archiveName = $archiveName -replace '[\\/:*?"<>|]', '_'
         
-        try {
-            $arhResult = $null
+            if ($archiveName -notmatch '\.(rar|7z|zip)$') {
+                $archiveName = $archiveName + $archiveExtension
+            }
+        
+            $archivePath = Join-Path -Path $DestinationPath -ChildPath $archiveName
+        
+            Write-Log "Архивация файла: ${sourceFileName} -> $archiveName" -Level INFO
+        
+            try {
+                $arhResult = $null
             
-            switch ($ArchiverType) {
-                'RAR' {
-                    $arhResult = Start-RarArchive -RarPath $ArchiverPath -ArchivePath $archivePath -SourcePath $sourceFilePath -Parameters $Parameters -LogPath $null
-                }
-                '7Z' {
-                    $archiveType = [System.IO.Path]::GetExtension($archivePath).TrimStart('.')
-                    $arhResult = Start-7zArchive -SevenZipPath $ArchiverPath -ArchivePath $archivePath -SourcePath $sourceFilePath -ArchiveType $archiveType -Parameters $Parameters -LogPath $null
-                }
-                'ZIP' {
-                    try {
-                        Compress-Archive -Path $sourceFilePath -DestinationPath $archivePath -Force -ErrorAction Stop
-                        $arhResult = @{
-                            ExitCode    = 0
-                            Duration    = 0
-                            ArchiveSize = [math]::Round((Get-Item $archivePath).Length / 1MB, 2)
+                switch ($ArchiverType) {
+                    'RAR' {
+                        $arhResult = Start-RarArchive -RarPath $ArchiverPath -ArchivePath $archivePath -SourcePath $sourceFilePath -Parameters $Parameters -LogPath $null
+                    }
+                    '7Z' {
+                        $archiveType = [System.IO.Path]::GetExtension($archivePath).TrimStart('.')
+                        $arhResult = Start-7zArchive -SevenZipPath $ArchiverPath -ArchivePath $archivePath -SourcePath $sourceFilePath -ArchiveType $archiveType -Parameters $Parameters -LogPath $null
+                    }
+                    'ZIP' {
+                        try {
+                            Compress-Archive -Path $sourceFilePath -DestinationPath $archivePath -Force -ErrorAction Stop
+                            $arhResult = @{
+                                ExitCode    = 0
+                                Duration    = 0
+                                ArchiveSize = [math]::Round((Get-Item $archivePath).Length / 1MB, 2)
+                            }
+                        }
+                        catch {
+                            $arhResult = @{
+                                ExitCode  = 1
+                                Duration  = 0
+                                Exception = $_.Exception
+                            }
                         }
                     }
-                    catch {
-                        $arhResult = @{
-                            ExitCode  = 1
-                            Duration  = 0
-                            Exception = $_.Exception
-                        }
+                }
+            
+                $fileEnd = Get-Date
+                $fileDuration = [math]::Round(($fileEnd - $fileStart).TotalSeconds, 2)
+            
+                if ($arhResult.ExitCode -eq 0) {
+                    Write-Log "Успешно: $archiveName ($($arhResult.ArchiveSize) МБ, $($fileDuration) сек)" -Level SUCCESS -ResultKey
+                    $successCount++
+                    $results += [PSCustomObject]@{
+                        SourceFile  = $sourceFileName
+                        ArchivePath = $archivePath
+                        ArchiveSize = $arhResult.ArchiveSize
+                        Duration    = $fileDuration
+                        Status      = 'Success'
+                        ExitCode    = $arhResult.ExitCode
+                    }
+                }
+                else {
+                    $errorDesc = switch ($ArchiverType) {
+                        'RAR' { Get-RarExitCodeMeaning -ExitCode $arhResult.ExitCode }
+                        '7Z' { Get-7zExitCodeMeaning -ExitCode $arhResult.ExitCode }
+                        'ZIP' { 'Ошибка создания ZIP архива' }
+                    }
+                    # ✅ ИСПРАВЛЕНО: ${sourceFileName} вместо $sourceFileName:
+                    Write-Log "Ошибка архивации ${sourceFileName}: $errorDesc" -Level ERROR -ResultKey
+                    $errorCount++
+                    $results += [PSCustomObject]@{
+                        SourceFile   = $sourceFileName
+                        ArchivePath  = $archivePath
+                        ArchiveSize  = 0
+                        Duration     = $fileDuration
+                        Status       = 'Error'
+                        ExitCode     = $arhResult.ExitCode
+                        ErrorMessage = $errorDesc
                     }
                 }
             }
-            
-            $fileEnd = Get-Date
-            $fileDuration = [math]::Round(($fileEnd - $fileStart).TotalSeconds, 2)
-            
-            if ($arhResult.ExitCode -eq 0) {
-                Write-Log "Успешно: $archiveName ($($arhResult.ArchiveSize) МБ, $($fileDuration) сек)" -Level SUCCESS -ResultKey
-                $successCount++
-                $results += [PSCustomObject]@{
-                    SourceFile   = $sourceFileName
-                    ArchivePath  = $archivePath
-                    ArchiveSize  = $arhResult.ArchiveSize
-                    Duration     = $fileDuration
-                    Status       = 'Success'
-                    ExitCode     = $arhResult.ExitCode
-                }
-            }
-            else {
-                $errorDesc = switch ($ArchiverType) {
-                    'RAR' { Get-RarExitCodeMeaning -ExitCode $arhResult.ExitCode }
-                    '7Z'  { Get-7zExitCodeMeaning -ExitCode $arhResult.ExitCode }
-                    'ZIP' { 'Ошибка создания ZIP архива' }
-                }
+            catch {
+                $fileEnd = Get-Date
+                $fileDuration = [math]::Round(($fileEnd - $fileStart).TotalSeconds, 2)
                 # ✅ ИСПРАВЛЕНО: ${sourceFileName} вместо $sourceFileName:
-                Write-Log "Ошибка архивации ${sourceFileName}: $errorDesc" -Level ERROR -ResultKey
+                Write-Log "Критическая ошибка при архивации ${sourceFileName}: $($_.Exception.Message)" -Level ERROR -ResultKey
                 $errorCount++
                 $results += [PSCustomObject]@{
                     SourceFile   = $sourceFileName
@@ -1475,33 +1492,16 @@ process {
                     ArchiveSize  = 0
                     Duration     = $fileDuration
                     Status       = 'Error'
-                    ExitCode     = $arhResult.ExitCode
-                    ErrorMessage = $errorDesc
+                    ExitCode     = 255
+                    ErrorMessage = $_.Exception.Message
                 }
             }
         }
-        catch {
-            $fileEnd = Get-Date
-            $fileDuration = [math]::Round(($fileEnd - $fileStart).TotalSeconds, 2)
-            # ✅ ИСПРАВЛЕНО: ${sourceFileName} вместо $sourceFileName:
-            Write-Log "Критическая ошибка при архивации ${sourceFileName}: $($_.Exception.Message)" -Level ERROR -ResultKey
-            $errorCount++
-            $results += [PSCustomObject]@{
-                SourceFile   = $sourceFileName
-                ArchivePath  = $archivePath
-                ArchiveSize  = 0
-                Duration     = $fileDuration
-                Status       = 'Error'
-                ExitCode     = 255
-                ErrorMessage = $_.Exception.Message
-            }
-        }
+    
+        Write-Log "Индивидуальная архивация завершена: Успешно=$successCount, Ошибки=$errorCount" -Level INFO -ResultKey
+    
+        return $results
     }
-    
-    Write-Log "Индивидуальная архивация завершена: Успешно=$successCount, Ошибки=$errorCount" -Level INFO -ResultKey
-    
-    return $results
-}
 }
 
 <#
@@ -1537,130 +1537,146 @@ process {
 $result = Start-IndividualFolderArchive -ArchiverType "RAR" -ArchiverPath "C:\work\rar.exe" -SourcePath "C:\src\JOB3" -DestinationPath "C:\dst\JOB3" -ArchivePattern "{PCName}_{JobName}_{SourceFolderName}.rar" -Parameters @("a", "-m3", "-r") -PCName "SERVER01" -JobName "JOB3"
 #>
 function Start-IndividualFolderArchive {
-[CmdletBinding()]
-[OutputType([object[]])]
-param(
-    [Parameter(Mandatory = $true)][ValidateSet('RAR', '7Z', 'ZIP')][string]$ArchiverType,
-    [Parameter(Mandatory = $true)][string]$ArchiverPath,
-    [Parameter(Mandatory = $true)][string]$SourcePath,
-    [Parameter(Mandatory = $true)][string]$DestinationPath,
-    [Parameter(Mandatory = $true)][string]$ArchivePattern,
-    [Parameter(Mandatory = $false)][string]$FolderFilter,
-    [Parameter(Mandatory = $false)][string[]]$Parameters,
-    [Parameter(Mandatory = $false)][string]$LogPath,
-    [Parameter(Mandatory = $false)][string]$PCName,
-    [Parameter(Mandatory = $false)][string]$JobName
-)
-process {
-    $results = @()
-    $archiveExtension = switch ($ArchiverType) {
-        'RAR' { '.rar' }
-        '7Z'  { '.7z' }
-        'ZIP' { '.zip' }
-        default { '.rar' }
-    }
-    
-    Write-Log "Поиск подпапок для индивидуальной архивации в: $SourcePath" -Level INFO -ResultKey
-    
-    # Получение списка подпапок первого уровня
-    $folders = Get-ChildItem -Path $SourcePath -Directory -ErrorAction SilentlyContinue
-    
-    # Фильтрация по маске если указана
-    if (-not [string]::IsNullOrWhiteSpace($FolderFilter)) {
-        $folders = $folders | Where-Object { $_.Name -like $FolderFilter }
-        Write-Log "Применён фильтр папок: $FolderFilter (найдено $($folders.Count))" -Level INFO
-    }
-    
-    if ($folders.Count -eq 0) {
-        Write-Log "Подпапки для архивации не найдены" -Level WARNING -ResultKey
-        return $results
-    }
-    
-    Write-Log "Найдено подпапок для архивации: $($folders.Count)" -Level INFO -ResultKey
-    
-    # Создание директории назначения если не существует
-    if (-not (Test-Path -LiteralPath $DestinationPath -PathType Container)) {
-        New-Item -Path $DestinationPath -ItemType Directory -Force -ErrorAction Stop | Out-Null
-    }
-    
-    $successCount = 0
-    $errorCount = 0
-    
-    foreach ($folder in $folders) {
-        $folderStart = Get-Date
-        $folderName = $folder.Name
-        $folderPath = $folder.FullName
-        
-        # Формирование имени архива
-        $archiveName = $ArchivePattern
-        $archiveName = $archiveName -replace '{PCName}', $PCName
-        $archiveName = $archiveName -replace '{JobName}', $JobName
-        $archiveName = $archiveName -replace '{SourceFolderName}', $folderName
-        
-        # Удаление недопустимых символов из имени архива
-        $archiveName = $archiveName -replace '[\\/:*?"<>|]', '_'
-        
-        # Добавление расширения если отсутствует
-        if ($archiveName -notmatch '\.(rar|7z|zip)$') {
-            $archiveName = $archiveName + $archiveExtension
+    [CmdletBinding()]
+    [OutputType([object[]])]
+    param(
+        [Parameter(Mandatory = $true)][ValidateSet('RAR', '7Z', 'ZIP')][string]$ArchiverType,
+        [Parameter(Mandatory = $true)][string]$ArchiverPath,
+        [Parameter(Mandatory = $true)][string]$SourcePath,
+        [Parameter(Mandatory = $true)][string]$DestinationPath,
+        [Parameter(Mandatory = $true)][string]$ArchivePattern,
+        [Parameter(Mandatory = $false)][string]$FolderFilter,
+        [Parameter(Mandatory = $false)][string[]]$Parameters,
+        [Parameter(Mandatory = $false)][string]$LogPath,
+        [Parameter(Mandatory = $false)][string]$PCName,
+        [Parameter(Mandatory = $false)][string]$JobName
+    )
+    process {
+        $results = @()
+        $archiveExtension = switch ($ArchiverType) {
+            'RAR' { '.rar' }
+            '7Z' { '.7z' }
+            'ZIP' { '.zip' }
+            default { '.rar' }
         }
+    
+        Write-Log "Поиск подпапок для индивидуальной архивации в: $SourcePath" -Level INFO -ResultKey
+    
+        # Получение списка подпапок первого уровня
+        $folders = Get-ChildItem -Path $SourcePath -Directory -ErrorAction SilentlyContinue
+    
+        # Фильтрация по маске если указана
+        if (-not [string]::IsNullOrWhiteSpace($FolderFilter)) {
+            $folders = $folders | Where-Object { $_.Name -like $FolderFilter }
+            Write-Log "Применён фильтр папок: $FolderFilter (найдено $($folders.Count))" -Level INFO
+        }
+    
+        if ($folders.Count -eq 0) {
+            Write-Log "Подпапки для архивации не найдены" -Level WARNING -ResultKey
+            return $results
+        }
+    
+        Write-Log "Найдено подпапок для архивации: $($folders.Count)" -Level INFO -ResultKey
+    
+        # Создание директории назначения если не существует
+        if (-not (Test-Path -LiteralPath $DestinationPath -PathType Container)) {
+            New-Item -Path $DestinationPath -ItemType Directory -Force -ErrorAction Stop | Out-Null
+        }
+    
+        $successCount = 0
+        $errorCount = 0
+    
+        foreach ($folder in $folders) {
+            $folderStart = Get-Date
+            $folderName = $folder.Name
+            $folderPath = $folder.FullName
         
-        $archivePath = Join-Path -Path $DestinationPath -ChildPath $archiveName
+            # Формирование имени архива
+            $archiveName = $ArchivePattern
+            $archiveName = $archiveName -replace '{PCName}', $PCName
+            $archiveName = $archiveName -replace '{JobName}', $JobName
+            $archiveName = $archiveName -replace '{SourceFolderName}', $folderName
         
-        Write-Log "Архивация папки: ${folderName} -> $archiveName" -Level INFO
+            # Удаление недопустимых символов из имени архива
+            $archiveName = $archiveName -replace '[\\/:*?"<>|]', '_'
         
-        try {
-            $arhResult = $null
+            # Добавление расширения если отсутствует
+            if ($archiveName -notmatch '\.(rar|7z|zip)$') {
+                $archiveName = $archiveName + $archiveExtension
+            }
+        
+            $archivePath = Join-Path -Path $DestinationPath -ChildPath $archiveName
+        
+            Write-Log "Архивация папки: ${folderName} -> $archiveName" -Level INFO
+        
+            try {
+                $arhResult = $null
             
-            switch ($ArchiverType) {
-                'RAR' {
-                    $arhResult = Start-RarArchive -RarPath $ArchiverPath -ArchivePath $archivePath -SourcePath $folderPath -Parameters $Parameters -LogPath $null
-                }
-                '7Z' {
-                    $archiveType = [System.IO.Path]::GetExtension($archivePath).TrimStart('.')
-                    $arhResult = Start-7zArchive -SevenZipPath $ArchiverPath -ArchivePath $archivePath -SourcePath $folderPath -ArchiveType $archiveType -Parameters $Parameters -LogPath $null
-                }
-                'ZIP' {
-                    try {
-                        Compress-Archive -Path (Join-Path $folderPath '*') -DestinationPath $archivePath -Force -ErrorAction Stop
-                        $arhResult = @{
-                            ExitCode    = 0
-                            Duration    = 0
-                            ArchiveSize = [math]::Round((Get-Item $archivePath).Length / 1MB, 2)
+                switch ($ArchiverType) {
+                    'RAR' {
+                        $arhResult = Start-RarArchive -RarPath $ArchiverPath -ArchivePath $archivePath -SourcePath $folderPath -Parameters $Parameters -LogPath $null
+                    }
+                    '7Z' {
+                        $archiveType = [System.IO.Path]::GetExtension($archivePath).TrimStart('.')
+                        $arhResult = Start-7zArchive -SevenZipPath $ArchiverPath -ArchivePath $archivePath -SourcePath $folderPath -ArchiveType $archiveType -Parameters $Parameters -LogPath $null
+                    }
+                    'ZIP' {
+                        try {
+                            Compress-Archive -Path (Join-Path $folderPath '*') -DestinationPath $archivePath -Force -ErrorAction Stop
+                            $arhResult = @{
+                                ExitCode    = 0
+                                Duration    = 0
+                                ArchiveSize = [math]::Round((Get-Item $archivePath).Length / 1MB, 2)
+                            }
+                        }
+                        catch {
+                            $arhResult = @{
+                                ExitCode  = 1
+                                Duration  = 0
+                                Exception = $_.Exception
+                            }
                         }
                     }
-                    catch {
-                        $arhResult = @{
-                            ExitCode  = 1
-                            Duration  = 0
-                            Exception = $_.Exception
-                        }
+                }
+            
+                $folderEnd = Get-Date
+                $folderDuration = [math]::Round(($folderEnd - $folderStart).TotalSeconds, 2)
+            
+                if ($arhResult.ExitCode -eq 0) {
+                    Write-Log "Успешно: $archiveName ($($arhResult.ArchiveSize) МБ, $($folderDuration) сек)" -Level SUCCESS -ResultKey
+                    $successCount++
+                    $results += [PSCustomObject]@{
+                        SourceFolder = $folderName
+                        ArchivePath  = $archivePath
+                        ArchiveSize  = $arhResult.ArchiveSize
+                        Duration     = $folderDuration
+                        Status       = 'Success'
+                        ExitCode     = $arhResult.ExitCode
+                    }
+                }
+                else {
+                    $errorDesc = switch ($ArchiverType) {
+                        'RAR' { Get-RarExitCodeMeaning -ExitCode $arhResult.ExitCode }
+                        '7Z' { Get-7zExitCodeMeaning -ExitCode $arhResult.ExitCode }
+                        'ZIP' { 'Ошибка создания ZIP архива' }
+                    }
+                    Write-Log "Ошибка архивации ${folderName}: $errorDesc" -Level ERROR -ResultKey
+                    $errorCount++
+                    $results += [PSCustomObject]@{
+                        SourceFolder = $folderName
+                        ArchivePath  = $archivePath
+                        ArchiveSize  = 0
+                        Duration     = $folderDuration
+                        Status       = 'Error'
+                        ExitCode     = $arhResult.ExitCode
+                        ErrorMessage = $errorDesc
                     }
                 }
             }
-            
-            $folderEnd = Get-Date
-            $folderDuration = [math]::Round(($folderEnd - $folderStart).TotalSeconds, 2)
-            
-            if ($arhResult.ExitCode -eq 0) {
-                Write-Log "Успешно: $archiveName ($($arhResult.ArchiveSize) МБ, $($folderDuration) сек)" -Level SUCCESS -ResultKey
-                $successCount++
-                $results += [PSCustomObject]@{
-                    SourceFolder = $folderName
-                    ArchivePath  = $archivePath
-                    ArchiveSize  = $arhResult.ArchiveSize
-                    Duration     = $folderDuration
-                    Status       = 'Success'
-                    ExitCode     = $arhResult.ExitCode
-                }
-            }
-            else {
-                $errorDesc = switch ($ArchiverType) {
-                    'RAR' { Get-RarExitCodeMeaning -ExitCode $arhResult.ExitCode }
-                    '7Z'  { Get-7zExitCodeMeaning -ExitCode $arhResult.ExitCode }
-                    'ZIP' { 'Ошибка создания ZIP архива' }
-                }
-                Write-Log "Ошибка архивации ${folderName}: $errorDesc" -Level ERROR -ResultKey
+            catch {
+                $folderEnd = Get-Date
+                $folderDuration = [math]::Round(($folderEnd - $folderStart).TotalSeconds, 2)
+                Write-Log "Критическая ошибка при архивации ${folderName}: $($_.Exception.Message)" -Level ERROR -ResultKey
                 $errorCount++
                 $results += [PSCustomObject]@{
                     SourceFolder = $folderName
@@ -1668,32 +1684,16 @@ process {
                     ArchiveSize  = 0
                     Duration     = $folderDuration
                     Status       = 'Error'
-                    ExitCode     = $arhResult.ExitCode
-                    ErrorMessage = $errorDesc
+                    ExitCode     = 255
+                    ErrorMessage = $_.Exception.Message
                 }
             }
         }
-        catch {
-            $folderEnd = Get-Date
-            $folderDuration = [math]::Round(($folderEnd - $folderStart).TotalSeconds, 2)
-            Write-Log "Критическая ошибка при архивации ${folderName}: $($_.Exception.Message)" -Level ERROR -ResultKey
-            $errorCount++
-            $results += [PSCustomObject]@{
-                SourceFolder = $folderName
-                ArchivePath  = $archivePath
-                ArchiveSize  = 0
-                Duration     = $folderDuration
-                Status       = 'Error'
-                ExitCode     = 255
-                ErrorMessage = $_.Exception.Message
-            }
-        }
+    
+        Write-Log "Индивидуальная архивация папок завершена: Успешно=$successCount, Ошибки=$errorCount" -Level INFO -ResultKey
+    
+        return $results
     }
-    
-    Write-Log "Индивидуальная архивация папок завершена: Успешно=$successCount, Ошибки=$errorCount" -Level INFO -ResultKey
-    
-    return $results
-}
 }
 #endregion /ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ АРХИВАЦИИ
 
@@ -2855,8 +2855,8 @@ foreach ($jobName in $config.Jobs.Keys) {
         # === КОНЕЦ БЛОКА: Индивидуальная архивация файлов ===
         #endregion
         
-		#region
-		        # === БЛОК: Индивидуальная архивация подпапок ===
+        #region
+        # === БЛОК: Индивидуальная архивация подпапок ===
         $archiveIndividualFolders = $false
         if ($job.ContainsKey('ArchiveIndividualFolders')) {
             $archiveIndividualFolders = [System.Convert]::ToBoolean($job.ArchiveIndividualFolders)

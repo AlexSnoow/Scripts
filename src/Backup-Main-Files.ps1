@@ -7,7 +7,7 @@
 .EXAMPLE
     powershell.exe -ExecutionPolicy Bypass -File ".\Backup-Main-Files.ps1"
 .NOTES
-    Автор: Kilo Code
+    Автор: 
     Версия: 1.0
     Дата: 2025-11-12
 #>
