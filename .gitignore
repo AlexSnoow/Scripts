@@ -1,0 +1,35 @@
+# Logs
+*.log
+*.log.*
+
+# Temporary files
+*.tmp
+*.bak
+*.cache
+
+# Test artifacts
+/test/
+/test_files/
+C_Test/
+
+# Archives (should not be tracked)
+*.rar
+*.zip
+*.7z
+
+# OS files
+Thumbs.db
+desktop.ini
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# PowerShell transcripts
+*transcript*.txt
+
+# Shadow copy links
+ShadowLink/
