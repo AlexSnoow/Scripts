@@ -1,0 +1,474 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  BackupConfig — единая конфигурация для Backup_PowerShell
+  Используется: Backup-Main-All.ps1 (PS 5.1), Backup-Run.ps1 (PS 2.0)
+  Генерация прода: build.ps1
+-->
+<BackupConfig>
+  <General>
+    <JobName>BackupAllXml</JobName>
+    <Domain>localdomain.loc</Domain>
+    <SmtpServer>smtp.localdomain.loc</SmtpServer>
+    <LogDaysOld>7</LogDaysOld>
+    <LogKeepCount>7</LogKeepCount>
+    <ArchiverType>RAR</ArchiverType>
+    <DefaultRarParameters>
+      <Param>a</Param>
+      <Param>-m5</Param>
+      <Param>-s</Param>
+      <Param>-ep1</Param>
+      <Param>-dh</Param>
+      <Param>-rr1p</Param>
+      <Param>-r</Param>
+    </DefaultRarParameters>
+    <Default7zParameters>
+      <Param>a</Param>
+      <Param>-t7z</Param>
+      <Param>-m0=lzma2</Param>
+      <Param>-mx=5</Param>
+      <Param>-mfb=64</Param>
+      <Param>-md=32m</Param>
+      <Param>-ms=on</Param>
+      <Param>-sdel</Param>
+      <Param>-r</Param>
+    </Default7zParameters>
+  </General>
+
+  <Paths>
+    <LogPathRoot>C:\Work\BackupAllJson\logs</LogPathRoot>
+    <NetLogPath>C:\work\BackupAllJson\logs\NetLogPath</NetLogPath>
+    <RarPath>c:\work\rar.exe</RarPath>
+    <SevenZipPath>c:\work\7z.exe</SevenZipPath>
+  </Paths>
+
+  <Recipients>
+    <AdminIS>user1@head.localdomain.loc</AdminIS>
+    <AdminOS>user2@head.localdomain.loc</AdminOS>
+    <AdminMail>user3@head.localdomain.loc</AdminMail>
+  </Recipients>
+
+  <Integrity>
+    <RarExeHash>A7A155934662984A5063D8D9215DC5E226AA12F4E04FCA932574EA075E32DD3A</RarExeHash>
+    <SevenZipExeHash>4CD7D776C686427226A151789D2D61F0B2ED2C392148CC4E69C0238362FAFECF</SevenZipExeHash>
+  </Integrity>
+
+  <Jobs>
+
+    <!-- ============================================================ -->
+    <!-- JOB1: Стандартная архивация с масками и проверкой масок      -->
+    <!-- ============================================================ -->
+    <Job Name="JOB1">
+      <Source>C:\Work\BackupAllJson\src\JOB1\</Source>
+      <ListSourceFlag>csv</ListSourceFlag>
+      <SourceCheckMasks>
+        <Mask>*CTP*.*</Mask>
+        <Mask>ACQ_ADV_*.*</Mask>
+        <Mask>OAI_*.*</Mask>
+        <Mask>OAM_*.*</Mask>
+        <Mask>PART_CTL*.*</Mask>
+        <Mask>CTL*.*</Mask>
+        <Mask>PART_MTL*.*</Mask>
+        <Mask>*MTP*.*</Mask>
+        <Mask>OBR_*.*</Mask>
+        <Mask>OCI_*</Mask>
+        <Mask>OIA_*</Mask>
+        <Mask>OSM_*.*</Mask>
+        <Mask>CSJN_*.*</Mask>
+        <Mask>AFP20*.*</Mask>
+        <Mask>AFP_ACQ*.*</Mask>
+      </SourceCheckMasks>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <ArchivePattern>{PCName}_{JobName}_{Date_Time}.rar</ArchivePattern>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB1\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB2: Стандартная архивация с масками                        -->
+    <!-- ============================================================ -->
+    <Job Name="JOB2">
+      <Source>C:\Work\BackupAllJson\src\JOB2\</Source>
+      <ListSourceFlag>csv</ListSourceFlag>
+      <SourceCheckMasks>
+        <Mask>IBI_*</Mask>
+        <Mask>IIA_*</Mask>
+      </SourceCheckMasks>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <ArchivePattern>{PCName}_{JobName}_{Date_Time}.rar</ArchivePattern>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB2\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB3: Стандартная архивация без масок                        -->
+    <!-- ============================================================ -->
+    <Job Name="JOB3">
+      <Source>C:\Work\BackupAllJson\src\JOB3\</Source>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <ArchivePattern>{PCName}_{JobName}_{Date_Time}.rar</ArchivePattern>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB3\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB4: Стандартная архивация без масок                        -->
+    <!-- ============================================================ -->
+    <Job Name="JOB4">
+      <Source>C:\Work\BackupAllJson\src\JOB4\</Source>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <ArchivePattern>{PCName}_{JobName}_{Date_Time}.rar</ArchivePattern>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB4\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB5: Стандартная архивация без масок                        -->
+    <!-- ============================================================ -->
+    <Job Name="JOB5">
+      <Source>C:\Work\BackupAllJson\src\JOB5\</Source>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <ArchivePattern>{PCName}_{JobName}_{Date_Time}.rar</ArchivePattern>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB5\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB6: Индивидуальная архивация каталогов (исключая сегодня)  -->
+    <!-- ============================================================ -->
+    <Job Name="JOB6">
+      <Source>C:\Work\BackupAllJson\src\JOB6\</Source>
+      <ArchiveIndividualFolders>true</ArchiveIndividualFolders>
+      <IndividualArchivePattern>{PCName}_{JobName}_{SourceFolderName}.rar</IndividualArchivePattern>
+      <ExcludeFolderPattern>today</ExcludeFolderPattern>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB6\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB7: Индивидуальная архивация каталогов                     -->
+    <!-- ============================================================ -->
+    <Job Name="JOB7">
+      <Source>C:\Work\BackupAllJson\src\JOB7\</Source>
+      <ArchiveIndividualFolders>true</ArchiveIndividualFolders>
+      <IndividualArchivePattern>{PCName}_{JobName}_{SourceFolderName}.rar</IndividualArchivePattern>
+      <ExcludeFolderPattern>today</ExcludeFolderPattern>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB7\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB8: Индивидуальная архивация каталогов                     -->
+    <!-- ============================================================ -->
+    <Job Name="JOB8">
+      <Source>C:\Work\BackupAllJson\src\JOB8\</Source>
+      <ArchiveIndividualFolders>true</ArchiveIndividualFolders>
+      <IndividualArchivePattern>{PCName}_{JobName}_{SourceFolderName}.rar</IndividualArchivePattern>
+      <ExcludeFolderPattern>today</ExcludeFolderPattern>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB8\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB9: Индивидуальная архивация каталогов                     -->
+    <!-- ============================================================ -->
+    <Job Name="JOB9">
+      <Source>C:\Work\BackupAllJson\src\JOB9\</Source>
+      <ArchiveIndividualFolders>true</ArchiveIndividualFolders>
+      <IndividualArchivePattern>{PCName}_{JobName}_{SourceFolderName}.rar</IndividualArchivePattern>
+      <ExcludeFolderPattern>today</ExcludeFolderPattern>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB9\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB10: Индивидуальная архивация каталогов                    -->
+    <!-- ============================================================ -->
+    <Job Name="JOB10">
+      <Source>C:\Work\BackupAllJson\src\JOB10\</Source>
+      <ArchiveIndividualFolders>true</ArchiveIndividualFolders>
+      <IndividualArchivePattern>{PCName}_{JobName}_{SourceFolderName}.rar</IndividualArchivePattern>
+      <ExcludeFolderPattern>today</ExcludeFolderPattern>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB10\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB11: Индивидуальная архивация каталогов                    -->
+    <!-- ============================================================ -->
+    <Job Name="JOB11">
+      <Source>C:\Work\BackupAllJson\src\JOB11\</Source>
+      <ArchiveIndividualFolders>true</ArchiveIndividualFolders>
+      <IndividualArchivePattern>{PCName}_{JobName}_{SourceFolderName}.rar</IndividualArchivePattern>
+      <ExcludeFolderPattern>today</ExcludeFolderPattern>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB11\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB12: Индивидуальная архивация каталогов                    -->
+    <!-- ============================================================ -->
+    <Job Name="JOB12">
+      <Source>C:\Work\BackupAllJson\src\JOB12\</Source>
+      <ArchiveIndividualFolders>true</ArchiveIndividualFolders>
+      <IndividualArchivePattern>{PCName}_{JobName}_{SourceFolderName}.rar</IndividualArchivePattern>
+      <ExcludeFolderPattern>today</ExcludeFolderPattern>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB12\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB13: Индивидуальная архивация каталогов                    -->
+    <!-- ============================================================ -->
+    <Job Name="JOB13">
+      <Source>C:\Work\BackupAllJson\src\JOB13\</Source>
+      <ArchiveIndividualFolders>true</ArchiveIndividualFolders>
+      <IndividualArchivePattern>{PCName}_{JobName}_{SourceFolderName}.rar</IndividualArchivePattern>
+      <ExcludeFolderPattern>today</ExcludeFolderPattern>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB13\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB14: Индивидуальная архивация файлов по маске fxserver     -->
+    <!-- ============================================================ -->
+    <Job Name="JOB14">
+      <Source>C:\Work\BackupAllJson\src\JOB14\</Source>
+      <ArchiveIndividualFiles>true</ArchiveIndividualFiles>
+      <FileFilter>fxserver.20*.log</FileFilter>
+      <ExcludeFilePattern>fxserver.log</ExcludeFilePattern>
+      <IndividualArchivePattern>{PCName}_{JobName}_{SourceFileName}.rar</IndividualArchivePattern>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB14\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB15: Индивидуальная архивация файлов по маске fxserver     -->
+    <!-- ============================================================ -->
+    <Job Name="JOB15">
+      <Source>C:\Work\BackupAllJson\src\JOB15\</Source>
+      <ArchiveIndividualFiles>true</ArchiveIndividualFiles>
+      <FileFilter>fxserver.20*.log</FileFilter>
+      <ExcludeFilePattern>fxserver.log</ExcludeFilePattern>
+      <IndividualArchivePattern>{PCName}_{JobName}_{SourceFileName}.rar</IndividualArchivePattern>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB15\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB16: Индивидуальная архивация каталогов                    -->
+    <!-- ============================================================ -->
+    <Job Name="JOB16">
+      <Source>C:\Work\BackupAllJson\src\JOB16\</Source>
+      <ArchiveIndividualFolders>true</ArchiveIndividualFolders>
+      <IndividualArchivePattern>{PCName}_{JobName}_{SourceFolderName}.rar</IndividualArchivePattern>
+      <ExcludeFolderPattern>today</ExcludeFolderPattern>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB16\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB17: Индивидуальная архивация каталогов                    -->
+    <!-- ============================================================ -->
+    <Job Name="JOB17">
+      <Source>C:\Work\BackupAllJson\src\JOB17\</Source>
+      <ArchiveIndividualFolders>true</ArchiveIndividualFolders>
+      <IndividualArchivePattern>{PCName}_{JobName}_{SourceFolderName}.rar</IndividualArchivePattern>
+      <ExcludeFolderPattern>today</ExcludeFolderPattern>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB17\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB18: Индивидуальная архивация каталогов                    -->
+    <!-- ============================================================ -->
+    <Job Name="JOB18">
+      <Source>C:\Work\BackupAllJson\src\JOB18\</Source>
+      <ArchiveIndividualFolders>true</ArchiveIndividualFolders>
+      <IndividualArchivePattern>{PCName}_{JobName}_{SourceFolderName}.rar</IndividualArchivePattern>
+      <ExcludeFolderPattern>today</ExcludeFolderPattern>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB18\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB19: Индивидуальная архивация каталогов                    -->
+    <!-- ============================================================ -->
+    <Job Name="JOB19">
+      <Source>C:\Work\BackupAllJson\src\JOB19\</Source>
+      <ArchiveIndividualFolders>true</ArchiveIndividualFolders>
+      <IndividualArchivePattern>{PCName}_{JobName}_{SourceFolderName}.rar</IndividualArchivePattern>
+      <ExcludeFolderPattern>today</ExcludeFolderPattern>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB19\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB20: Индивидуальная архивация файлов по маске fxserver     -->
+    <!-- ============================================================ -->
+    <Job Name="JOB20">
+      <Source>C:\Work\BackupAllJson\src\JOB20\</Source>
+      <ArchiveIndividualFiles>true</ArchiveIndividualFiles>
+      <FileFilter>fxserver.20*.log</FileFilter>
+      <ExcludeFilePattern>fxserver.log</ExcludeFilePattern>
+      <IndividualArchivePattern>{PCName}_{JobName}_{SourceFileName}.rar</IndividualArchivePattern>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB20\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+    <!-- ============================================================ -->
+    <!-- JOB21: Индивидуальная архивация файлов по маске info.log     -->
+    <!-- ============================================================ -->
+    <Job Name="JOB21">
+      <Source>C:\Work\BackupAllJson\src\JOB21\</Source>
+      <ArchiveIndividualFiles>true</ArchiveIndividualFiles>
+      <FileFilter>info.log.20*</FileFilter>
+      <ExcludeFilePattern>info.log</ExcludeFilePattern>
+      <IndividualArchivePattern>{PCName}_{JobName}_{SourceFileName}.rar</IndividualArchivePattern>
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+      <LocalDest>C:\Work\BackupAllJson\dst\Local\JOB21\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>C:\Work\BackupAllJson\dst\Remote\</RemoteDest>
+      <RemoveRemoteDestFlag>false</RemoveRemoteDestFlag>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+  </Jobs>
+</BackupConfig>
