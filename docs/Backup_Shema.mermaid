@@ -1,0 +1,81 @@
+flowchart TD
+    A[Start] --> B[Run Script]
+    B --> C{XML File Found?}
+    C -->|No| D[Critical Error: XML Not Found<br/>Exit 1]
+    C -->|Yes| E[Verify XML Hash]
+    E -->|Hash Mismatch| F[XML Validation Failed<br/>Exit 1]
+    E -->|Hash Matches| G[XML Verified Successfully]
+    G --> H[Load Configuration from XML]
+    H --> I{Archiver Type = RAR?}
+    I -->|No| J[Critical Error: Only RAR Supported<br/>Exit 1]
+    I -->|Yes| K[Build Config Hash Tables]
+    K --> L[Extract Variables: PCName, SmtpServer, AdminMail, etc.]
+    L --> M{Test Mode?}
+    M -->|Yes| N[Test Mode:<br/>- Check Archiver<br/>- Check Sources<br/>- Check Write Permissions<br/>- Check SMTP<br/>- Check Recipients<br/>- Send Test Email<br/>Exit]
+    M -->|No| O[Initialize Logging<br/>Create Log File]
+    O --> P[Log Section: SCRIPT START]
+    P --> Q[Validate Configuration]
+    Q -->|Invalid| R[Output Errors<br/>Exit 1]
+    Q -->|Valid| S[Log Windows Event: Start]
+    S --> T[For Each Job in Config]
+    T --> U[Log Section: JOB: <job_name>]
+    U --> V[Check/Create Directories:<br/>Source, LocalDest, RemoteDest]
+    V --> W[Get File Info Details<br/>Analyze Source]
+    W --> X{Source Check Masks Exist?}
+    X -->|Yes| Y[Filter File List by Masks]
+    X -->|No| Z[Skip Filtering]
+    Y --> AA[List Source Flag?]
+    Z --> AA
+    AA -->|Yes| AB[Get File List<br/>Create TXT/CSV List]
+    AA -->|No| AC[Skip File Listing]
+    AB --> AD{Archive Individual Files?}
+    AC --> AD
+    AD -->|Yes| AE[INDIVIDUAL FILE ARCHIVATION<br/>Start-IndividualFileArchive()]
+    AD -->|No| AF{Archive Individual Folders?}
+    AF -->|Yes| AG[INDIVIDUAL FOLDER ARCHIVATION<br/>Start-IndividualFolderArchive()]
+    AF -->|No| AH[STANDARD ARCHIVATION<br/>Start-RarArchive()]
+    AE --> AI[Verify Archive Integrity]
+    AG --> AI
+    AH --> AI
+    AI --> AJ{RAR Archive Valid?}
+    AJ -->|No| AK[ARCHIVE CORRUPTED<br/>Handle Error]
+    AJ -->|Yes| AL{Standard Archiving Mode?}
+    AL -->|Yes| AM[Get Source File List<br/>Get Archive File List<br/>Compare Files Source Archive]
+    AM --> AN{Verification Passed?}
+    AN -->|No| AO[ERROR: Integrity Violation]
+    AN -->|Yes| AP[VERIFICATION PASSED]
+    AL -->|No| AP
+    AP --> AQ{Remote Destination Accessible?}
+    AQ -->|Yes| AR[Copy Backup File to Remote Storage]
+    AR --> AS{Remove Remote Dest Flag?}
+    AS -->|Yes| AT[Rotate Old Files in Remote Storage]
+    AS -->|No| AU[Skip Remote Rotation]
+    AQ -->|No| AV[WARNING: Saved Locally Only]
+    AU --> AW[Rotate Old Files in Local Storage]
+    AV --> AW
+    AW --> AX{Remove Source Flag?}
+    AX -->|Yes| AY{Individual Mode?}
+    AY -->|Yes| AZ[Verify Before Deletion<br/>Compare Files Source Archive for Each Archive]
+    AZ -->|All Passed| BA[Delete Verified Files/Folders]
+    AZ -->|Not All Passed| BB[WARNING: Deletion CANCELLED]
+    AY -->|No| BC[Rotate Old Files in Source]
+    BB --> BC
+    BC --> BD[Write XML Report for Job]
+    BD --> BE[Log: Job Completed]
+    BE --> BF{More Jobs?}
+    BF -->|Yes| T
+    BF -->|No| BG[Cleanup Old Logs]
+    BG --> BH[Get Disk Space Report]
+    BH --> BI[Log Section: FINAL RESULTS]
+    BI --> BJ[Write Summary XML Report]
+    BJ --> BK[Get Log Results<br/>Format Email Text]
+    BK --> BL{Errors Exist?}
+    BL -->|Yes| BM[Set Subject: ...ERRORS DETECTED<br/>Recipients: AdminIS, AdminOS<br/>Log Windows Event: Error]
+    BL -->|No| BN[Set Subject: ...SUCCESS<br/>Recipients: AdminIS, AdminMail<br/>Log Windows Event: Success]
+    BM --> BO[Send Email Report]
+    BN --> BO
+    BO --> BP[Log Windows Event: End]
+    BP --> BQ{Error Count > 0?}
+    BQ -->|Yes| BR[Exit 1]
+    BQ -->|No| BS[Exit 0]
+    BR --> BS

@@ -3,24 +3,24 @@
 ## Обзор
 
 Скрипт `Backup-ps2-v4.ps1` разработан для **PowerShell 2.0** и совместим с **Windows 7**.
-
+Запуск powershell -version 2.0 для тестов версии 2.0 в новых версиях Windows
 ---
 
 ## Ограничения PowerShell 2.0
 
 ### Недоступные возможности
 
-| Возможность | PS 2.0 | PS 5.1+ | Альтернатива в скрипте |
-|-------------|--------|---------|------------------------|
-| `[System.IO.File]::WriteAllLines()` | ✅ | ✅ | Используется |
-| `Get-FileHash` | ❌ | ✅ | `Get-FileHashCompat` |
-| `[string]::IsNullOrWhiteSpace()` | ❌ | ✅ | `Test-StringIsNullOrWhiteSpace` |
-| `ConvertFrom-Json` | ❌ | ✅ | XML вместо JSON |
-| `Export-Csv -Encoding` | Ограничено | ✅ | Явное указание UTF8 |
-| `New-Object System.Text.UTF8Encoding` | ✅ | ✅ | Используется |
-| `PSCustomObject` | ❌ | ✅ | `New-Object PSObject` |
-| `Try-Catch-Finally` | ✅ | ✅ | Используется |
-| `Pipeline` | ✅ | ✅ | Используется |
+| Возможность                           | PS 2.0     | PS 5.1+ | Альтернатива в скрипте          |
+| ------------------------------------- | ---------- | ------- | ------------------------------- |
+| `[System.IO.File]::WriteAllLines()`   | ✅          | ✅       | Используется                    |
+| `Get-FileHash`                        | ❌          | ✅       | `Get-FileHashCompat`            |
+| `[string]::IsNullOrWhiteSpace()`      | ❌          | ✅       | `Test-StringIsNullOrWhiteSpace` |
+| `ConvertFrom-Json`                    | ❌          | ✅       | XML вместо JSON                 |
+| `Export-Csv -Encoding`                | Ограничено | ✅       | Явное указание UTF8             |
+| `New-Object System.Text.UTF8Encoding` | ✅          | ✅       | Используется                    |
+| `PSCustomObject`                      | ❌          | ✅       | `New-Object PSObject`           |
+| `Try-Catch-Finally`                   | ✅          | ✅       | Используется                    |
+| `Pipeline`                            | ✅          | ✅       | Используется                    |
 
 ---
 

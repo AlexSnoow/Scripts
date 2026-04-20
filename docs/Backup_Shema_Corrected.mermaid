@@ -1,0 +1,162 @@
+```mermaid
+flowchart TD
+    A[Start] --> B[Run Script]
+    B --> C{XML File Found?}
+    C -->|No| D[Critical Error: XML Not Found<br/>Exit 1]
+    C -->|Yes| E[Verify XML Hash]
+    E -->|Hash Mismatch| F[XML Validation Failed<br/>Exit 1]
+    E -->|Hash Matches| G[XML Verified Successfully]
+    G --> H[Load Configuration from XML]
+    H --> I{Archiver Type = RAR?}
+    I -->|No| J[Critical Error: Only RAR Supported<br/>Exit 1]
+    I -->|Yes| K[Build Config Hash Tables]
+    K --> L[Extract Variables:<br/>PCName, SmtpServer, AdminMail]
+    L --> M{Test Mode?}
+    M -->|Yes| N[Test Mode Checks:<br/>- Check Archiver<br/>- Check Sources<br/>- Check Write Permissions<br/>- Check SMTP<br/>- Check Recipients<br/>- Send Test Email]
+    N --> Z[Exit]
+    M -->|No| O[Initialize Logging<br/>Create Log File]
+    O --> P[Log Section: SCRIPT START]
+    P --> Q[Validate Configuration]
+    Q -->|Invalid| R[Output Errors<br/>Exit 1]
+    Q -->|Valid| S[Log Windows Event: Start]
+    S --> T[For Each Job in Config]
+    T --> U[Log Section: JOB: job_name]
+    U --> V[Check/Create Directories:<br/>Source, LocalDest, RemoteDest]
+    V --> W[Get File Info Details<br/>Analyze Source]
+    W --> X{Source Check Masks?}
+    X -->|Yes| Y[Filter File List by Masks]
+    X -->|No| AA[Skip Filtering]
+    Y --> AB{List Source Flag?}
+    AA --> AB
+    AB -->|Yes| AC[Get File List<br/>Create TXT/CSV List]
+    AB -->|No| AD[Skip File Listing]
+    AC --> AE{Archive Mode?}
+    AD --> AE
+    AE -->|Individual Files| AF[Individual File Archivation<br/>Prepare-ArchiveItems + Invoke-ArchivePipeline]
+    AE -->|Individual Folders| AG[Individual Folder Archivation<br/>Prepare-ArchiveItems + Invoke-ArchivePipeline]
+    AE -->|Normal| AH[Normal Archivation<br/>Invoke-ArchivePipeline]
+    AF --> AI[Invoke-Verification<br/>Compare Files Source Archive]
+    AG --> AI
+    AH --> AI
+    AI --> AJ{Verification Passed?}
+    AJ -->|No| AK[ERROR: Integrity Violation]
+    AJ -->|Yes| AL[Verification Passed]
+    AK --> AM{Remote Dest Accessible?}
+    AL --> AM
+    AM -->|Yes| AN[Copy Backup File to Remote Storage]
+    AN --> AO{Remove Remote Dest Flag?}
+    AM -->|No| AP[WARNING: Saved Locally Only]
+    AO -->|Yes| AQ[Remove-OldFiles<br/>Rotate Remote Storage]
+    AO -->|No| AR[Skip Remote Rotation]
+    AP --> AS[Remove-OldFiles<br/>Rotate Local Storage]
+    AQ --> AS
+    AR --> AS
+    AS --> AT{Remove Source Flag?}
+    AT -->|Yes| AU{Individual Mode?}
+    AT -->|No| AV[Remove-OldFiles<br/>Rotate Source]
+    AU -->|Yes| AW[Verify Before Deletion<br/>Compare Files Source Archive]
+    AU -->|No| AV
+    AW --> AX{All Verified?}
+    AX -->|Yes| AY[Delete Verified Files/Folders]
+    AX -->|No| AZ[WARNING: Deletion Cancelled]
+    AY --> BA[Write XML Report for Job]
+    AZ --> BA
+    AV --> BA
+    BA --> BB{More Jobs?}
+    BB -->|Yes| T
+    BB -->|No| BC[Remove-OldFiles<br/>Cleanup Old Logs]
+    BC --> BD[Get Disk Space Report]
+    BD --> BE[Log Section: FINAL RESULTS]
+    BE --> BF[Write Summary XML Report]
+    BF --> BG[Get Log Results<br/>Format Email Text]
+    BG --> BH{Errors Exist?}
+    BH -->|Yes| BI[Subject: ERRORS DETECTED<br/>Recipients: AdminIS, AdminOS<br/>EventLog: Error]
+    BH -->|No| BJ[Subject: SUCCESS<br/>Recipients: AdminIS, AdminMail<br/>EventLog: Success]
+    BI --> BK[Send Email Report]
+    BJ --> BK
+    BK --> BL[EventLog: End]
+    BL --> BM{Error Count > 0?}
+    BM -->|Yes| BN[Exit 1]
+    BM -->|No| BO[Exit 0]
+```
+
+---
+
+## Ключевые исправления
+
+### 1. Синтаксис многострочного текста
+**Было (неправильно):**
+```mermaid
+:КРИТИЧЕСКАЯ ОШИБКА:\nexit 1;
+```
+
+**Стало (правильно):**
+```mermaid
+[Critical Error: XML Not Found<br/>Exit 1]
+```
+
+### 2. Условные переходы
+**Было (неправильно):**
+```mermaid
+if (XML найден?) then (нет)
+```
+
+**Стало (правильно):**
+```mermaid
+C{XML File Found?}
+C -->|No| D[...]
+C -->|Yes| E[...]
+```
+
+### 3. Циклы
+**Было (неправильно):**
+```mermaid
+repeat
+...
+repeat while (Есть ещё задания?) is (да)
+```
+
+**Стало (правильно):**
+```mermaid
+BB{More Jobs?}
+BB -->|Yes| T
+BB -->|No| BC
+```
+
+### 4. Отсутствие `partition`
+В Mermaid используется `subgraph` вместо `partition`:
+```mermaid
+subgraph "Phase 1"
+    A --> B
+end
+```
+
+Но в простой схеме можно обойтись без него.
+
+### 5. Неправильные стрелки
+**Было (неправильно):**
+```mermaid
+-> нет;
+```
+
+**Стало (правильно):**
+```mermaid
+BB -->|No| BC
+```
+
+## Рекомендации
+
+1. **Для сложных схем** используйте `subgraph` для группировки:
+```mermaid
+subgraph "Phase 0: XML Check"
+    A --> B
+end
+```
+
+2. **Для стилей** можно добавить:
+```mermaid
+style A fill:#f9f,stroke:#333
+style B fill:#bbf,stroke:#333
+```
+
+3. **Для вертикальной ориентации** можно использовать `TD` (top-down) или `BT` (bottom-top)
