@@ -1,221 +1,418 @@
-Отличный вопрос. Поскольку ваш скрипт находится в рабочей папке `c:\work\myScript\`, у вас есть два пути
-организации модулей:
+# PowerShell 2.0 — Справочник по совместимости
 
-1.  **Локально (в папке проекта):** Модуль лежит рядом со скриптом. Это делает проект "портативным" (можно
-скопировать папку на другой компьютер и все заработает).
-2.  **Глобально (в системной папке):** Модуль устанавливается в систему. Если модуль используется многими разными
-скриптами в разных местах, это лучший вариант.
+## Обзор
 
-Разберем оба варианта для PowerShell 5.1.
+Скрипт `Backup-ps2-v4.ps1` разработан для **PowerShell 2.0** и совместим с **Windows 7**.
 
 ---
 
-### Вариант 1: Локальные модули (Рекомендуется для конкретного проекта)
+## Ограничения PowerShell 2.0
 
-Если ваш модуль нужен только для этого конкретного скрипта или проекта, лучше всего держать его внутри рабочей
-папки.
+### Недоступные возможности
 
-#### 1. Организуйте структуру папок
-Важно соблюдать правило: **Имя папки модуля должно совпадать с именем файла (без расширения)**. Это позволяет
-PowerShell корректно определять модуль.
+| Возможность | PS 2.0 | PS 5.1+ | Альтернатива в скрипте |
+|-------------|--------|---------|------------------------|
+| `[System.IO.File]::WriteAllLines()` | ✅ | ✅ | Используется |
+| `Get-FileHash` | ❌ | ✅ | `Get-FileHashCompat` |
+| `[string]::IsNullOrWhiteSpace()` | ❌ | ✅ | `Test-StringIsNullOrWhiteSpace` |
+| `ConvertFrom-Json` | ❌ | ✅ | XML вместо JSON |
+| `Export-Csv -Encoding` | Ограничено | ✅ | Явное указание UTF8 |
+| `New-Object System.Text.UTF8Encoding` | ✅ | ✅ | Используется |
+| `PSCustomObject` | ❌ | ✅ | `New-Object PSObject` |
+| `Try-Catch-Finally` | ✅ | ✅ | Используется |
+| `Pipeline` | ✅ | ✅ | Используется |
 
-Структура должна выглядеть так:
-```text
-c:\work\myScript\
-├── main.ps1              <-- Ваш главный скрипт
-└── Modules\              <-- Создаем папку для модулей
-    └── MyCompanyUtils\   <-- Папка с ИМЕНЕМ модуля
-        └── MyCompanyUtils.psm1  <-- Сам файл модуля
+---
+
+## Паттерны совместимости
+
+### 1. Вычисление хеша файла
+
+**PS 5.1+:**
+```powershell
+$hash = Get-FileHash -Path "file.exe" -Algorithm SHA256
 ```
 
-#### 2. Как импортировать в скрипт `main.ps1`
-Так как папка `c:\work\myScript\Modules` не находится в стандартных путях PowerShell (`$env:PSModulePath`),
-автозагрузка тут не сработает. Вам нужно указать полный путь.
-
-В PowerShell 5.1 всегда используйте переменную `$PSScriptRoot`. Она указывает на папку, где лежит выполняемый
-скрипт (`main.ps1`). Это надежнее, чем писать жесткий путь `C:\work...`, так как если вы перенесете папку проекта
-в `D:\dev\`, скрипт перестанет работать с жесткими путями, но с `$PSScriptRoot` — продолжит.
-
-**Код внутри `main.ps1`:**
+**PS 2.0 (используется в скрипте):**
 ```powershell
-# 1. Собираем путь к модулю динамически
-$modulePath = Join-Path -Path $PSScriptRoot -ChildPath "Modules\MyCompanyUtils"
-
-# 2. Проверяем, существует ли папка (для надежности)
-if (Test-Path $modulePath) {
-    # 3. Импортируем модуль по полному пути
-    Import-Module $modulePath -Force
-    Write-Host "Модуль успешно загружен" -ForegroundColor Green
-} else {
-    Write-Error "Модуль не найден по пути: $modulePath"
+function Get-FileHashCompat {
+    param([string]$Path, [string]$Algorithm = 'SHA256')
+    $hashAlgo = [System.Security.Cryptography.SHA256]::Create()
+    $fileStream = [System.IO.File]::OpenRead($Path)
+    $hashBytes = $hashAlgo.ComputeHash($fileStream)
+    $hashString = [System.BitConverter]::ToString($hashBytes).Replace('-', '')
+    return @{ Hash = $hashString.ToUpper(); Algorithm = $Algorithm; Path = $Path }
 }
-
-# Теперь можно вызывать функции из модуля
-Invoke-MyFunction
 ```
 
-**Почему это best practice:**
-Вы можете вызывать `Import-Module $modulePath`, указывая путь к **папке**. PowerShell сам найдет внутри `.psm1`
-файл (или `.psd1`, если есть), так как имя папки и файла совпадают.
+### 2. Проверка пустой строки
 
----
-
-### Вариант 2: Глобальные модули (Для общего использования)
-
-Если этот модуль — ваша личная библиотека функций, которую вы хотите использовать в *любом* скрипте на этом
-компьютере, не копируя её в каждую папку.
-
-#### 1. Куда класть файлы
-В PowerShell 5.1 есть специальная папка для модулей текущего пользователя. Обычно это:
-`C:\Users\<YourUserName>\Documents\WindowsPowerShell\Modules\`
-
-Создайте там структуру:
-```text
-Documents\WindowsPowerShell\Modules\
-└── MyCompanyUtils\
-    └── MyCompanyUtils.psm1
-```
-*(Если папки `WindowsPowerShell\Modules` нет, создайте их вручную).*
-
-#### 2. Как импортировать в скрипт `main.ps1`
-Теперь, когда модуль лежит в "правильном" системном месте, вам вообще не нужно указывать пути. PowerShell найдет
-его сам.
-
-**Код внутри `main.ps1`:**
+**PS 5.1+:**
 ```powershell
-# Просто импортируем по имени. PowerShell сам найдет путь в переменной $env:PSModulePath
-Import-Module MyCompanyUtils
-
-# Если модуль уже был загружен ранее, -Force заставит перечитать файл (полезно при разработке)
-# Import-Module MyCompanyUtils -Force
-
-Invoke-MyFunction
+if ([string]::IsNullOrWhiteSpace($value)) { ... }
 ```
 
----
-
-### Продвинутый трюк: Динамическое добавление пути (Гибридный вариант)
-
-Если вы хотите держать модуль в папке проекта (Вариант 1), но хотите вызывать его просто по имени (как в Варианте
-2), не писая длинные `Join-Path`, вы можете временно добавить папку `Modules` в переменную окружения
-`$env:PSModulePath` прямо в начале скрипта.
-
-**Код внутри `main.ps1`:**
+**PS 2.0 (используется в скрипте):**
 ```powershell
-# Определяем путь к папке с модулями относительно скрипта
-$localModulesPath = Join-Path $PSScriptRoot "Modules"
-
-# Если этого пути еще нет в системном списке модулей, добавляем его временно для этой сессии
-if ($env:PSModulePath -notlike "*$localModulesPath*") {
-    $env:PSModulePath = "$localModulesPath;$env:PSModulePath"
+function Test-StringIsNullOrWhiteSpace {
+    param([string]$Value)
+    if ($Value -eq $null) { return $true }
+    if ($Value -eq '') { return $true }
+    if ($Value -match '^\s*$') { return $true }
+    return $false
 }
-
-# Теперь можно импортировать просто по имени, как будто он установлен глобально!
-Import-Module MyCompanyUtils
 ```
 
-### Резюме для вашего случая (`c:\work\myScript\`)
+### 3. Создание объектов
 
-1.  Создайте папку `Modules` рядом с `main.ps1`.
-2.  Внутри создайте папку с именем модуля (например, `MyLib`).
-3.  Положите `MyLib.psm1` внутрь.
-4.  В `main.ps1` напишите:
-    ```powershell
-    Import-Module (Join-Path $PSScriptRoot "Modules\MyLib")
-    ```
-
-Это самый надежный, переносимый и профессиональный способ для скриптов, которые живут в рабочих папках.
-
--------------
-В корпоративной среде с жесткими требованиями безопасности (Enterprise Security) подход "папка рядом со скриптом"
-(локальные модули) считается **плохой практикой** и часто запрещен политиками безопасности.
-
-Почему?
-1.  **Сложность аудита:** Если каждый скрипт тащит с собой свою библиотеку, у вас будет 50 копий одного и того же
-модуля. Обновить версию (например, из-за бага или уязвимости) — кошмар.
-2.  **Execution Policy:** В корпорациях часто стоит политика `AllSigned` или `Restricted`. Копирование модулей в
-локальные папки может требовать постоянной разблокировки файлов (`Unblock-File`).
-3.  **Целостность:** Локальные файлы проще подменить злоумышленнику, если у пользователя есть права на запись в
-рабочую папку.
-
-Для корпоративной среды я рекомендую следующую стратегию: **Централизованное хранение и управление.**
-
----
-
-### Стратегия 1: Системное развертывание (Рекомендуемый "Gold Standard")
-
-Вместо того чтобы модуль traveling (путешествовал) со скриптом, модуль должен быть установлен как часть
-стандартного софта на машине (как драйвер или драйвер принтера).
-
-#### 1. Размещение
-Используйте системную папку `Program Files`, доступную только для чтения (Read-Only) для обычных пользователей.
-```text
-C:\Program Files\WindowsPowerShell\Modules\
-└── MyCorpUtils\
-    ├── 1.0.0\
-    │   └── MyCorpUtils.psm1
-    └── MyCorpUtils.psd1
-```
-
-#### 2. Доставка
-Не копируйте файлы руками. Используйте системы деплоя:
-*   **SCCM (System Center Configuration Manager)** / **MECM**: Создайте приложение, которое распаковывает модуль в
-`Program Files`.
-*   **Intune**: Для управляемых компьютеров используйте Win32 Apps.
-*   **Group Policy (GPO) с Startup Script:** Скрипт запуска копирует файлы из безопасной сетевой шары в локальную
-папку при старте ПК (если нет SCCM).
-
-#### 3. Использование в скрипте
-Ваш скрипт `c:\work\myScript\main.ps1` становится максимально чистым:
+**PS 5.1+:**
 ```powershell
-# Мы просто вызываем модуль по имени. Он находится в надежном системном месте.
-Import-Module MyCorpUtils
-
-# Если вам строго нужна определенная версия (чтобы избежать поломок при обновлении):
-Import-Module MyCorpUtils -RequiredVersion 1.0.0
+$obj = [PSCustomObject]@{ Name = "Value" }
 ```
 
----
-
-### Стратегия 2: Централизованное сетевое хранилище (Network Share)
-
-Если у вас много скриптов, которые обновляются ежедневно, и деплоить их через SCCM слишком долго, используйте
-сетевое хранилище.
-
-#### 1. Размещение
-Создайте DFS-шару (Distributed File System) с доступом только на чтение (Read) для пользователей и запись (Write)
-только для группы администраторов/DevOps.
-```text
-\\corp.net\dfs\PowerShell\Modules\
-└── MyCorpUtils\
-    └── MyCorpUtils.psm1
-```
-
-#### 2. Настройка путей (PSModulePath)
-Вам не нужно прописывать полные пути в скриптах. Вам нужно один раз настроить среду через **GPO (Group Policy)**:
-1.  Откройте GPO: `Computer Configuration` -> `Administrative Templates` -> `Windows Components` -> `Windows
-PowerShell`.
-2.  Включите политику **"Set Module Path"** (если доступна) или, что надежнее, добавьте путь через переменную
-среды в GPO:
-    `Computer Configuration` -> `Preferences` -> `Windows Settings` -> `Environment`.
-    Имя переменной: `PSModulePath`
-    Значение: `%SystemRoot%\system32\WindowsPowerShell\v1.0\Modules\;\\corp.net\dfs\PowerShell\Modules\`
-
-#### 3. Использование
-Поскольку сетевая папка теперь прописана в `$env:PSModulePath` на всех машинах через GPO, скрипты снова работают
-просто по имени:
+**PS 2.0 (используется в скрипте):**
 ```powershell
-# PowerShell сам найдет модуль в сетевой шаре
-Import-Module MyCorpUtils
+$obj = New-Object PSObject -Property @{ Name = "Value" }
+```
+
+### 4. Кодировка файлов
+
+**В скрипте:**
+```powershell
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+[System.IO.File]::WriteAllText($path, $content, $utf8NoBom)
 ```
 
 ---
 
-### Критические элементы безопасности (Must Have)
+## Кодировки в скрипте
 
-В корпоративной среде недостаточно просто положить файлы. Вам нужно защитить их от изменений.
+### OEM (CP866) — для логов
 
-#### 1. Цифровая подпись кода (Code Signing)
-Это обязательное требование для большинства банков и предприятий.
-*   **Требование:** Политика Execution Policy должна быть установлена в `AllSigned` (через GPO).
-*   **Действие:** Все ваши `.psm1` и `.ps1` должны быть
+```powershell
+$Script:EncodingOEM = [System.Text.Encoding]::GetEncoding(866)
+```
+
+**Применение:** Лог-файлы RAR, консольный вывод
+
+### UTF8 без BOM — для отчётов
+
+```powershell
+$Script:EncodingUTF8NoBOM = New-Object System.Text.UTF8Encoding $false
+```
+
+**Применение:** XML, CSV, JSON отчёты
+
+---
+
+## Работа с XML
+
+### Загрузка
+
+```powershell
+[xml]$xmlDoc = Get-Content $xmlPath -Encoding UTF8
+$b = $xmlDoc.BackupConfig
+```
+
+### Чтение узлов
+
+```powershell
+foreach ($jobNode in $b.Jobs.Job) {
+    $name = $jobNode.Name
+    $source = $jobNode.Source
+}
+```
+
+### Чтение массивов
+
+```powershell
+$ap = @()
+foreach ($p in $jobNode.ArhParameters.Param) { $ap += $p }
+```
+
+---
+
+## Работа с процессами
+
+### Запуск внешнего процесса
+
+```powershell
+$psi = New-Object System.Diagnostics.ProcessStartInfo
+$psi.FileName = $RarPath
+$psi.Arguments = $argsList -join ' '
+$psi.UseShellExecute = $false
+$psi.CreateNoWindow = $true
+$psi.RedirectStandardOutput = $true
+$psi.RedirectStandardError = $true
+
+$process = New-Object System.Diagnostics.Process
+$process.StartInfo = $psi
+$process.Start() | Out-Null
+$process.WaitForExit()
+$exitCode = $process.ExitCode
+```
+
+---
+
+## Обработка исключений
+
+### Try-Catch-Finally
+
+```powershell
+try {
+    $fileStream = [System.IO.File]::OpenRead($filePath)
+    $hashBytes = $hashAlgo.ComputeHash($fileStream)
+}
+catch {
+    throw "Ошибка: $($_.Exception.Message)"
+}
+finally {
+    $fileStream.Dispose()
+}
+```
+
+### ErrorAction
+
+```powershell
+New-Item -Path $path -ItemType Directory -Force -ErrorAction Stop
+```
+
+---
+
+## Сетевые операции
+
+### Проверка сетевого пути
+
+```powershell
+if (Test-Path -LiteralPath $targetPath -PathType Container) {
+    # Путь существует
+}
+```
+
+### Создание сетевой папки
+
+```powershell
+if (-not (Test-Path -LiteralPath $targetPath -PathType Container)) {
+    New-Item -Path $targetPath -ItemType Directory -Force -ErrorAction Stop | Out-Null
+}
+```
+
+---
+
+## EventLog
+
+### Проверка существования источника
+
+```powershell
+if (-not ([System.Diagnostics.EventLog]::SourceExists($Source))) {
+    Write-Log "EventLog: источник '$Source' не зарегистрирован." -Level WARNING
+    return
+}
+```
+
+### Запись события
+
+```powershell
+$eventLog = New-Object System.Diagnostics.EventLog('Application')
+$eventLog.Source = $Source
+$eventLog.WriteEntry($MessageText, [System.Diagnostics.EventLogEntryType]::Information, 3001)
+```
+
+---
+
+## SMTP отправка (CDO.Message)
+
+```powershell
+$msg = New-Object -ComObject CDO.Message
+$msg.From = "from@domain.loc"
+$msg.To = "to@domain.loc"
+$msg.Subject = "Subject"
+$msg.TextBody = "Body text"
+
+$cfg = $msg.Configuration
+$cfg.Fields.Item("http://schemas.microsoft.com/cdo/configuration/smtpserver") = "smtp.domain.loc"
+$cfg.Fields.Item("http://schemas.microsoft.com/cdo/configuration/smtpserverport") = 25
+$cfg.Fields.Item("http://schemas.microsoft.com/cdo/configuration/sendusing") = 2
+$cfg.Fields.Update()
+
+$msg.Send()
+[System.Runtime.InteropServices.Marshal]::ReleaseComObject($msg) | Out-Null
+```
+
+---
+
+## Переменные окружения
+
+```powershell
+$PCName = $env:COMPUTERNAME
+$PSModulePath = $env:PSModulePath
+```
+
+---
+
+## Даты и время
+
+### Форматирование
+
+```powershell
+Get-Date -Format 'yyyyMMdd_HHmmss'      # 20260412_205449
+Get-Date -Format 'yyyy-MM-dd HH:mm:ss'  # 2026-04-12 20:54:49
+Get-Date -Format 'yyyy-MM-ddTHH:mm:ss'  # 2026-04-12T20:54:49 (ISO 8601)
+```
+
+### Вычитание дней
+
+```powershell
+$cutoffDate = (Get-Date).AddDays(-7)
+```
+
+### Разница во времени
+
+```powershell
+$duration = [math]::Round(($processEnd - $processStart).TotalMinutes, 2)
+```
+
+---
+
+## Файловая система
+
+### Получение размера файла
+
+```powershell
+$size = (Get-Item -LiteralPath $filePath).Length
+$sizeMB = [math]::Round($size / 1MB, 2)
+```
+
+### Рекурсивный список файлов
+
+```powershell
+$items = Get-ChildItem -LiteralPath $rootPath -Recurse -Force -ErrorAction SilentlyContinue |
+         Where-Object { -not $_.PSIsContainer }
+```
+
+### Исключение символических ссылок
+
+```powershell
+$items = $items | Where-Object {
+    -not ($_.Attributes.Value -band [System.IO.FileAttributes]::ReparsePoint)
+}
+```
+
+---
+
+## Массивы и хеш-таблицы
+
+### Создание массива
+
+```powershell
+$files = @()
+$files += $item
+```
+
+### Хеш-таблица
+
+```powershell
+$hash = @{
+    Key1 = "Value1"
+    Key2 = "Value2"
+}
+```
+
+### Проверка наличия ключа
+
+```powershell
+if ($hash.ContainsKey($key)) { ... }
+```
+
+---
+
+## Строковые операции
+
+### Замена
+
+```powershell
+$safeName = $name -replace '[\\/:*?"<>|]', '-'
+```
+
+### Склеивание
+
+```powershell
+$logEntry = "[$timestamp] $levelPrefix $safeMessage"
+$report = ($entries -join "`r`n")
+```
+
+### Проверка начала строки
+
+```powershell
+if ($lowerFull.StartsWith($lowerRoot)) { ... }
+```
+
+---
+
+## Лучшие практики для PS 2.0
+
+1. **Всегда указывайте типы параметров** — `[string]`, `[int]`, `[bool]`
+2. **Используйте `-LiteralPath`** вместо `-Path` для путей с спецсимволами
+3. **Явно указывайте кодировку** — `UTF8Encoding $false` для UTF8 без BOM
+4. **Dispose ресурсов** — вызывайте `.Dispose()` для файловых потоков
+5. **ErrorAction Stop** — для критических операций в try-catch
+6. **Where-Object вместо Where** — полная совместимость
+7. **New-Object PSObject** — вместо PSCustomObject
+8. **XML вместо JSON** — ConvertFrom-Json недоступен в PS 2.0
+
+---
+
+## Отладка
+
+### Write-Verbose
+
+```powershell
+Write-Verbose "Отладочное сообщение"
+```
+
+Запуск с `-Verbose`:
+```powershell
+powershell.exe -executionpolicy RemoteSigned -file .\Backup-ps2-v4.ps1 -Verbose
+```
+
+### Write-Debug
+
+```powershell
+Write-Debug "Детали: $variable"
+```
+
+### Write-Warning
+
+```powershell
+Write-Warning "Предупреждение"
+```
+
+---
+
+## Запуск скрипта
+
+### Прямой запуск
+
+```powershell
+powershell.exe -executionpolicy RemoteSigned -file .\app\Backup-ps2-v4.ps1
+```
+
+### С тестовым режимом
+
+```powershell
+powershell.exe -executionpolicy RemoteSigned -file .\app\Backup-ps2-v4.ps1 -testmode
+```
+
+### Из PowerShell 5.1+
+
+```powershell
+& powershell.exe -executionpolicy RemoteSigned -file .\app\Backup-ps2-v4.ps1
+```
+
+---
+
+## См. также
+
+- [README.md](README.md) — Общая документация
+- [Backup_Config_Reference.md](Backup_Config_Reference.md) — Конфигурация
+- [Backup_API_Reference.md](Backup_API_Reference.md) — API функций
