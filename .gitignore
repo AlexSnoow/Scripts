@@ -27,9 +27,8 @@ desktop.ini
 *.swp
 *.swo
 *~
-.opencode/
-AGENTS.md
-tasks/
+
+
 
 # PowerShell transcripts
 *transcript*.txt
