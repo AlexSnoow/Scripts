@@ -1,4 +1,4 @@
-# PowerShell Backup Toolkit
+# PowerShell 2.0. Backup Toolkit
 
 Набор PowerShell-скриптов для автоматизации резервного копирования файлов и папок под Windows.
 
@@ -77,11 +77,11 @@ Copy-Item config/Backup-Config-All-rar_json_TEMPLATE.txt config/my-backup-config
 
 ## Режимы архиваторов
 
-| Архиватор | Модуль | Описание |
-|-----------|--------|----------|
-| RAR | `Backup-RAR.psm1` | WinRAR, максимальное сжатие |
-| 7-Zip | `Backup-7z.psm1` | Открытый формат, хорошее сжатие |
-| ZIP | `Backup-Zip.psm1` | Встроенный в PowerShell, базовое сжатие |
+| Архиватор | Модуль            | Описание                                |
+| --------- | ----------------- | --------------------------------------- |
+| RAR       | `Backup-RAR.psm1` | WinRAR, максимальное сжатие             |
+| 7-Zip     | `Backup-7z.psm1`  | Открытый формат, хорошее сжатие         |
+| ZIP       | `Backup-Zip.psm1` | Встроенный в PowerShell, базовое сжатие |
 
 ## Документация
 
