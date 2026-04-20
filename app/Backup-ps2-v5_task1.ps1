@@ -1742,10 +1742,10 @@ function Invoke-ArchivePipeline {
 
 #endregion
 
-# ==============================================================================
-#region ============================================================
+# ======================================================================
+#region ================================================================
 # UNIFIED PIPELINE: Верификация — единый механизм (включая 0-байтовые)
-# ============================================================
+# ======================================================================
 
 function Invoke-Verification {
     <#
@@ -1824,7 +1824,7 @@ function Invoke-Verification {
             Verified    = $verified
             FailedCount = $failed
             TotalCount  = $totalItems
-            AllPassed   = ($failed -eq 0) -and ($verified.Count -gt 0 -or $totalItems -eq 0)
+            AllPassed   = (($failed -eq 0) -and ($verified.Count -gt 0)) -or ($totalItems -eq 0)
         }
     }
 }
