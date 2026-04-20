@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  BackupConfig — единая конфигурация для Backup_PowerShell
-  Используется: Backup-Main-All.ps1 (PS 5.1), Backup-Run.ps1 (PS 2.0)
-  Генерация прода: build.ps1
+  BackupConfig — единая конфигурация
+  Используется как конфигурация заданий для скрипта PowerShell 2.0.
 -->
 <BackupConfig>
   <General>
@@ -21,24 +20,12 @@
       <Param>-rr1p</Param>
       <Param>-r</Param>
     </DefaultRarParameters>
-    <Default7zParameters>
-      <Param>a</Param>
-      <Param>-t7z</Param>
-      <Param>-m0=lzma2</Param>
-      <Param>-mx=5</Param>
-      <Param>-mfb=64</Param>
-      <Param>-md=32m</Param>
-      <Param>-ms=on</Param>
-      <Param>-sdel</Param>
-      <Param>-r</Param>
-    </Default7zParameters>
   </General>
 
   <Paths>
     <LogPathRoot>C:\Work\BackupAllXml\logs</LogPathRoot>
     <NetLogPath>C:\work\BackupAllXml\logs\NetLogPath</NetLogPath>
     <RarPath>c:\work\rar.exe</RarPath>
-    <SevenZipPath>c:\work\7z.exe</SevenZipPath>
   </Paths>
 
   <Recipients>
@@ -49,7 +36,6 @@
 
   <Integrity>
     <RarExeHash>2CE9D9F8CD10E8CEB3A943E1464938ECAB682313F8E4525DF17068B3EAE5B05B</RarExeHash>
-    <SevenZipExeHash>4CD7D776C686427226A151789D2D61F0B2ED2C392148CC4E69C0238362FAFECF</SevenZipExeHash>
   </Integrity>
 
   <Jobs>
