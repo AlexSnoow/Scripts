@@ -2082,6 +2082,11 @@ function Invoke-PostOperations {
             }
         }
     }
+    # === 4. Удаление временных файлов в TEMP ===
+    $tempListDir = Join-Path $env:TEMP "BackupByDateLists_$PID"
+    if (Test-Path $tempListDir) {
+        Remove-Item -Path $tempListDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function Write-JobReport {
