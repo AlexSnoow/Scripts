@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	BackupConfig — единая конфигурация для Backup_PowerShell
+	(Get-FileHash -Path ".\<имя XML>.xml" -Algorithm SHA256).Hash
+	(Get-FileHash -Path ".\rar.exe" -Algorithm SHA256).Hash  
+-->
+<BackupConfig>
+  <General>
+    <JobName>BackupAllXml</JobName>
+    <Domain>localdomain.loc</Domain>
+    <SmtpServer>smtp.localdomain.loc</SmtpServer>
+    <LogDaysOld>7</LogDaysOld>
+    <LogKeepCount>7</LogKeepCount>
+    <ArchiverType>RAR</ArchiverType>
+    <DefaultRarParameters>
+      <Param>a</Param>
+      <Param>-m3</Param>
+      <Param>-ep1</Param>
+      <Param>-dh</Param>
+      <Param>-rr3p</Param>
+      <Param>-r</Param>
+	  <Param>-t</Param>
+    </DefaultRarParameters>
+  </General>
+
+  <Paths>
+    <LogPathRoot>C:\Work\BackupAllXml\logs</LogPathRoot>
+    <NetLogPath>C:\work\BackupAllXml\logs\NetLogPath</NetLogPath>
+    <RarPath>c:\work\rar.exe</RarPath>
+  </Paths>
+
+  <Recipients>
+    <AdminIS>user1@head.localdomain.loc</AdminIS>
+    <AdminOS>user2@head.localdomain.loc</AdminOS>
+    <AdminMail>user3@head.localdomain.loc</AdminMail>
+  </Recipients>
+
+  <Integrity>
+    <RarExeHash>2CE9D9F8CD10E8CEB3A943E1464938ECAB682313F8E4525DF17068B3EAE5B05B</RarExeHash>
+  </Integrity>
+
+  <Jobs>
+
+    <!-- ================================================================================== -->
+    <!-- JOB1: Архивация файлов по дате, файлы с текущей датой не обрабатываются 			-->
+	<!-- Проверка наличия файлов по Маске вывод сколько каких файлов количество 			-->
+	<!-- Создание списка файлов в источнике на момент архивации в csv файл  				-->
+	<!-- Если архив создался успешно удаление файлов из Источника которые попали в архив	-->
+	<!-- НЕЛЬЗЯ УДАЛЯТЬ: Файлы с текущей датой YYYYMMDD, файлы не попали в архив			-->
+    <!-- ================================================================================== -->
+    <Job Name="JOB1">
+      <Source>C:\WORK\BackupAllXml\src\JOB1\</Source>
+      <ListSourceFlag>csv</ListSourceFlag>
+      <SourceCheckMasks>
+        <Mask>*CTP*.*</Mask>
+        <Mask>ACQ_ADV_*.*</Mask>
+        <Mask>OAI_*.*</Mask>
+        <Mask>OAM_*.*</Mask>
+        <Mask>PART_CTL*.*</Mask>
+        <Mask>CTL*.*</Mask>
+        <Mask>PART_MTL*.*</Mask>
+        <Mask>*MTP*.*</Mask>
+        <Mask>OBR_*.*</Mask>
+        <Mask>OCI_*</Mask>
+        <Mask>OIA_*</Mask>
+        <Mask>OSM_*.*</Mask>
+        <Mask>CSJN_*.*</Mask>
+        <Mask>AFP20*.*</Mask>
+        <Mask>AFP_ACQ*.*</Mask>
+      </SourceCheckMasks>
+	  <ArchiveByDate>true</ArchiveByDate>
+      <!-- <ArchiveByDatePattern>{PCName}_{JobName}_{LastWriteTime}.rar</ArchiveByDatePattern> -->
+	  <ArchivePattern>{PCName}_{JobName}_{Date}.rar</ArchivePattern>
+      <ExcludeTodayFiles>true</ExcludeTodayFiles>
+      <SourceFilter>*.*</SourceFilter>
+      <ExcludeFilePattern></ExcludeFilePattern>
+	  
+	  <!-- не могу понять как настроить удаление файлов которые попали в архив
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+	  -->
+	  <!--
+      <ArchivePattern>{PCName}_{JobName}_{Date_Time}.rar</ArchivePattern>
+	  -->
+      <LocalDest>D:\testBackupsLocal\JOB1\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>D:\testBackupsRemote\JOB1\</RemoteDest>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+	<!-- ========================================================================================== -->
+    <!-- JOB2: Архивация файлов по дате, файлы с текущей датой не обрабатываются 			        -->
+	<!-- Проверка наличия файлов по Маске вывод сколько каких файлов количество, маски файлов свои 	-->
+	<!-- Создание списка файлов в источнике на момент архивации в csv файл  						-->
+	<!-- Если архив создался успешно удаление файлов из Источника которые попали в архив			-->
+	<!-- НЕЛЬЗЯ УДАЛЯТЬ: Файлы с текущей датой YYYYMMDD, файлы не попали в архив					-->
+    <!-- ========================================================================================== -->
+    <Job Name="JOB2">
+      <Source>C:\WORK\BackupAllXml\src\JOB2\</Source>
+      <ListSourceFlag>csv</ListSourceFlag>
+      <SourceCheckMasks>
+        <Mask>IBI_*</Mask>
+        <Mask>IIA_*</Mask>
+      </SourceCheckMasks>
+	  
+	  <ArchiveByDate>true</ArchiveByDate>
+      <!-- <ArchiveByDatePattern>{PCName}_{JobName}_{LastWriteTime}.rar</ArchiveByDatePattern> -->
+	  <ArchivePattern>{PCName}_{JobName}_{Date}.rar</ArchivePattern>
+      <ExcludeTodayFiles>true</ExcludeTodayFiles>
+      <SourceFilter>*.*</SourceFilter>
+      <ExcludeFilePattern></ExcludeFilePattern>
+	  
+	  <!-- не могу понять как настроить удаление файлов которые попали в архив
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+	  -->
+      
+      <LocalDest>D:\testBackupsLocal\JOB2\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>D:\testBackupsRemote\JOB2\</RemoteDest>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+	<!-- ========================================================================================== -->
+    <!-- JOB3: Архивация файлов по дате, файлы с текущей датой не обрабатываются 			        -->
+	<!-- Если архив создался успешно удаление файлов из Источника которые попали в архив			-->
+	<!-- НЕЛЬЗЯ УДАЛЯТЬ: Файлы с текущей датой YYYYMMDD, файлы не попали в архив					-->
+    <!-- ========================================================================================== -->
+    <Job Name="JOB3">
+      <Source>C:\WORK\BackupAllXml\src\JOB3\</Source>
+	  <ArchiveByDate>true</ArchiveByDate>
+      <!-- <ArchiveByDatePattern>{PCName}_{JobName}_{LastWriteTime}.rar</ArchiveByDatePattern> -->
+	  <ArchivePattern>{PCName}_{JobName}_{Date}.rar</ArchivePattern>
+      <ExcludeTodayFiles>true</ExcludeTodayFiles>
+      <SourceFilter>*.*</SourceFilter>
+      <ExcludeFilePattern></ExcludeFilePattern>
+	  <!-- не могу понять как настроить удаление файлов которые попали в архив
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+	  -->
+      <LocalDest>D:\testBackupsLocal\JOB3\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>D:\testBackupsRemote\JOB3\</RemoteDest>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+	<!-- ========================================================================================== -->
+    <!-- JOB4: Архивация файлов по дате, файлы с текущей датой не обрабатываются 			        -->
+	<!-- Если архив создался успешно удаление файлов из Источника которые попали в архив			-->
+	<!-- Отдельные параметры архивации -m0 так как в Источнике архивы 								-->
+	<!-- НЕЛЬЗЯ УДАЛЯТЬ: Файлы с текущей датой YYYYMMDD, файлы не попали в архив					-->
+    <!-- ========================================================================================== -->
+    <Job Name="JOB4">
+      <Source>C:\WORK\BackupAllXml\src\JOB4\</Source>
+  	  <!-- <ArhParameters> -->
+		   <!-- <Param>a</Param> -->
+		   <!-- <Param>-m0</Param> -->
+		   <!-- <Param>-ep1</Param> -->
+		   <!-- <Param>-t</Param> -->
+		   <!-- <Param>-rr1p</Param> -->
+	  <!-- </ArhParameters> -->
+	  <ArchiveByDate>true</ArchiveByDate>
+      <!-- <ArchiveByDatePattern>{PCName}_{JobName}_DateGroup_{Date}.rar</ArchiveByDatePattern> -->
+	  <ArchivePattern>{PCName}_{JobName}_{Date}.rar</ArchivePattern>
+      <ExcludeTodayFiles>true</ExcludeTodayFiles>
+      <SourceFilter>*.*</SourceFilter>
+      <ExcludeFilePattern></ExcludeFilePattern>
+	  <!-- не могу понять как настроить удаление файлов которые попали в архив
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+	  -->
+      <LocalDest>D:\testBackupsLocal\JOB4\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>D:\testBackupsRemote\JOB4\</RemoteDest>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+	<!-- ========================================================================================== -->
+    <!-- JOB51: Индивидуальная архивация файлов по маске jzdo.log.20			      				-->
+	<!-- Если архив создался успешно удаление файлов из Источника которые попали в архив			-->
+	<!-- НЕЛЬЗЯ УДАЛЯТЬ: Файлы jzdo.log, файлы не попали в архив					-->
+    <!-- ===================================================================================== -->
+
+    <Job Name="JOB51">
+      <Source>C:\WORK\BackupAllXml\src\JOB51\</Source>
+      <ArchiveIndividualFiles>true</ArchiveIndividualFiles>
+      <SourceFilter>jzdo.log.20*</SourceFilter>
+      <ExcludeFilePattern>jzdo.log</ExcludeFilePattern>
+      <IndividualArchivePattern>{PCName}_{JobName}_{SourceFileName}.rar</IndividualArchivePattern>
+	  <!-- не могу понять как настроить удаление файлов которые попали в архив
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+	  -->
+      <LocalDest>D:\testBackupsLocal\JOB51\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>D:\testBackupsRemote\JOB51\</RemoteDest>
+      <ArhLog>true</ArhLog>
+    </Job>
+	
+	<!-- ============================================================ -->
+    <!-- JOB6: Индивидуальная архивация каталогов (исключая сегодня)  -->
+	<!-- Если архив создался успешно удаление файлов из Источника которые попали в архив			-->
+	<!-- НЕЛЬЗЯ УДАЛЯТЬ: Файлы из каталога с текущей датой YYYYMMDD , файлы не попали в архив					-->
+    <!-- ============================================================ -->
+    <Job Name="JOB6">
+      <Source>C:\Work\BackupAllXml\src\JOB6\</Source>
+      <ArchiveIndividualFolders>true</ArchiveIndividualFolders>
+      <IndividualArchivePattern>{PCName}_{JobName}_{SourceFolderName}.rar</IndividualArchivePattern>
+      <ExcludeFolderPattern>today</ExcludeFolderPattern>
+	  <!-- не могу понять как настроить удаление файлов которые попали в архив
+      <RemoveSourceFlag>true</RemoveSourceFlag>
+      <SourceDaysOld>0</SourceDaysOld>
+      <SourceKeepCount>0</SourceKeepCount>
+	  -->
+      <LocalDest>D:\testBackupsLocal\JOB6\</LocalDest>
+      <LocalDestDaysOld>7</LocalDestDaysOld>
+      <LocalDestKeepCount>7</LocalDestKeepCount>
+      <RemoteDest>D:\testBackupsRemote\JOB6\</RemoteDest>
+      <ArhLog>true</ArhLog>
+    </Job>
+
+
+  </Jobs>
+</BackupConfig>
