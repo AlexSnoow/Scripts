@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	BackupConfig — единая конфигурация для Backup powershell.exe -version 2.0
+-->
+<BackupConfig>
+  <General>
+    <JobName>BackupAllXml</JobName>
+    <Domain>localdomain.loc</Domain>
+    <SmtpServer>smtp.localdomain.loc</SmtpServer>
+    <ArchiverType>RAR</ArchiverType>
+    <DefaultRarParameters>
+      <Param>a</Param>
+      <Param>-m3</Param>
+      <Param>-ep1</Param>
+      <Param>-dh</Param>
+      <Param>-rr3p</Param>
+      <Param>-r</Param>
+	  <Param>-t</Param>
+    </DefaultRarParameters>
+  </General>
+
+  <Paths>
+    <LogPathRoot>C:\Work\BackupAllXml\logs</LogPathRoot>
+    <RarPath>c:\work\rar.exe</RarPath>
+  </Paths>
+
+  <Recipients>
+    <AdminIS>user1@head.localdomain.loc</AdminIS>
+    <AdminOS>user2@head.localdomain.loc</AdminOS>
+    <AdminMail>user3@head.localdomain.loc</AdminMail>
+  </Recipients>
+
+  <Jobs>
+
+	<!-- ================================================================================== 		-->
+	<!-- JOB1: Архивация файлов по дате, файлы с текущей датой не обрабатываются 					-->
+	<!-- Архивация с использованием списка файлов для архиватора rar a archive.rar @listfile.txt 	-->
+	<!-- Имя архива создается по маске <LocalDest>{PCName}_{JobName}_{LastWriteTime}.rar 			-->
+	<!-- Cписок файлов @<LocalDest>{PCName}_{JobName}_{LastWriteTime}.txt 							-->
+	<!-- ExcludeTodayFiles - исключить из архивации файлы с текущей датой YYYYMMDD -->
+	<!-- <ArhErrorLog> -ilog switch to write error messages to a file <LocalDest>PCName}_{JobName}_{LastWriteTime}_error.log -->
+    <!-- ================================================================================== 		-->
+    <Job Name="JOB1">
+		<Source>C:\WORK\BackupAllXml\src\JOB1\</Source>
+		<ArchiveByDate>true</ArchiveByDate>
+		<ArchivePattern>{PCName}_{JobName}_{LastWriteTime}.rar</ArchivePattern>
+		<ExcludeToday>true</ExcludeToday>
+		<ExcludeFilePattern></ExcludeFilePattern>
+		<LocalDest>D:\testBackupsLocal\JOB1\</LocalDest>
+		<LocalDestDaysOld>0</LocalDestDaysOld>
+		<LocalDestKeepCount>2</LocalDestKeepCount>
+		<RemoteDest>D:\testBackupsRemote\</RemoteDest>
+		<ArhErrorLog>true</ArhErrorLog>
+    </Job>
+
+	<!-- ========================================================================================== -->
+	<!-- JOB51: Индивидуальная архивация файлов по маске file.log.20*			      				-->
+	<!-- Архивация с использованием списка файлов для архиватора rar a archive.rar @listfile.txt 	-->
+	<!-- Архивация каждого файла в отдельный архив по маске <LocalDest>{PCName}_{JobName}_{SourceFileName}.rar -->
+	<!-- Cписок файлов @<LocalDest>{PCName}_{JobName}_{SourceFileName}.txt 							-->
+	<!-- <ArhErrorLog> -ilog switch to write error messages to a file <LocalDest>{PCName}_{JobName}_{LastWriteTime}_error.log -->
+	<!-- ===================================================================================== -->
+    <Job Name="JOB51">
+		<Source>C:\WORK\BackupAllXml\src\JOB51\</Source>
+		<ArchiveIndividualFiles>true</ArchiveIndividualFiles>
+		<SourceFilter>file.log.20*</SourceFilter>
+		<ExcludeFilePattern>file.log</ExcludeFilePattern>
+		<ArchivePattern>{PCName}_{JobName}_{SourceFileName}.rar</ArchivePattern>
+		<LocalDest>D:\testBackupsLocal\JOB51\</LocalDest>
+		<LocalDestDaysOld>0</LocalDestDaysOld>
+		<LocalDestKeepCount>2</LocalDestKeepCount>
+		<RemoteDest>D:\testBackupsRemote\</RemoteDest>
+		<ArhErrorLog>true</ArhErrorLog>
+    </Job>
+
+	<!-- ============================================================ -->
+	<!-- JOB6: Индивидуальная архивация каталогов (исключая сегодня)  -->
+	<!-- Архивация с использованием списка файлов для архиватора rar a archive.rar @listfile.txt 	-->
+	<!-- Архивация каталога в отдельный архив по маске <LocalDest>{PCName}_{JobName}_{SourceFolderName}.rar -->
+	<!-- Cписок файлов @<LocalDest>{PCName}_{JobName}_{SourceFolderName}.txt 							-->
+	<!-- <ArhErrorLog> -ilog switch to write error messages to a file <LocalDest>{PCName}_{JobName}_{SourceFolderName}_error.log -->
+	<!-- ArhParameters - индивидуальные параметры архивации для задания 		<Param>-df</Param> -->
+	<!-- ============================================================ -->
+    <Job Name="JOB6">
+		<Source>C:\Work\BackupAllXml\src\JOB6\</Source>
+		<ArchiveIndividualFolders>true</ArchiveIndividualFolders>
+		<IndividualArchivePattern>{PCName}_{JobName}_{SourceFolderName}.rar</IndividualArchivePattern>
+		<ExcludeToday>true</ExcludeToday>
+		<LocalDest>D:\testBackupsLocal\JOB6\</LocalDest>
+		<LocalDestDaysOld>0</LocalDestDaysOld>
+		<LocalDestKeepCount>2</LocalDestKeepCount>	  
+		<RemoteDest>D:\testBackupsRemote\</RemoteDest>
+		<ArhErrorLog>true</ArhErrorLog>
+		<ArhParameters>
+			<Param>a</Param>
+			<Param>-m0</Param>
+			<Param>-ep1</Param>
+			<Param>-t</Param>
+			<Param>-rr3p</Param>
+		</ArhParameters>
+    </Job>
+	<!-- ================================================================================== 		-->
+	<!-- JOB3: Архивация всех файлов и каталогов рекурсивно  					-->
+	<!-- Архивация с использованием списка файлов для архиватора rar a archive.rar @listfile.txt 	-->
+	<!-- Имя архива создается по маске <LocalDest>{PCName}_{JobName}_{DATE}.rar 			-->
+	<!-- Cписок файлов @<LocalDest>{PCName}_{JobName}_{DATE}.txt 							-->
+	<!-- <ArhErrorLog> -ilog switch to write error messages to a file <LocalDest>{PCName}_{JobName}_{DATE}_error.log -->
+    <!-- ================================================================================== 		-->
+    <Job Name="JOB3">
+		<Source>C:\WORK\BackupAllXml\src\JOB3\</Source>
+		<ArchiveAll>true</ArchiveAll>
+		<ArchivePattern>{PCName}_{JobName}_{DATE}.rar</ArchivePattern>
+		<ExcludeToday>false</ExcludeToday>
+		<ExcludeFilePattern></ExcludeFilePattern>
+		<LocalDest>D:\testBackupsLocal\JOB3\</LocalDest>
+		<LocalDestDaysOld>0</LocalDestDaysOld>
+		<LocalDestKeepCount>2</LocalDestKeepCount>		
+		<RemoteDest>D:\testBackupsRemote\</RemoteDest>
+		<ArhErrorLog>true</ArhErrorLog>
+    </Job>
+
+
+  </Jobs>
+</BackupConfig>
