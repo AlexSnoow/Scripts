@@ -144,11 +144,6 @@ function Invoke-TestMode {
         }
     }
 	
-    <# $FromEmail = "$env:COMPUTERNAME@$($Config.BackupConfig.General.Domain)"
-	$SmtpServer = $Config.BackupConfig.General.SmtpServer
-	$ToEmail = $Config.BackupConfig.Recipients.AdminMail
-	$JobName = $Config.BackupConfig.General.JobName #>
-
     Write-Host "`n[TEST MODE] Результат:" -ForegroundColor Cyan
 
     # --- Определяем статус и текст сообщения ---
@@ -175,7 +170,6 @@ function Invoke-TestMode {
         "Errors: $checkErrors`n" + `
         "Time: $(Get-Date)"
 
-    # Отправляем только если почта настроена
     Send-Email -Config $Config -Subject $SubjectMail -Body $BodyMail
 
     exit $ExitCode
@@ -442,7 +436,7 @@ function Remove-OldFiles {
             Write-Log $Path "There are no files to delete."
         }
 
-        Write-Log $Path ("Rotation is complete. Total: " + $allFiles.Count)
+        Write-Log $Path ("Rotation is complete. Total files save: " + $allFiles.Count)
     }
     catch {
         Write-Log $Path ("Rotation error: " + $_)
@@ -655,7 +649,7 @@ function Prepare-ArchiveAll {
 
 function Invoke-Archiving {
     param($ctx, $groups)
-
+    $checkErrors = 0
     foreach ($key in $groups.Keys) {
 
         $items = $groups[$key]
@@ -678,6 +672,8 @@ function Invoke-Archiving {
         $args = (Get-RarParams $ctx) + " `"$archivePath`" @$listFile"
 
         Write-Log $GlobalLog ("START " + $archivePath)
+        $startTime = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+        $jobLog += ("$startTime START " + $archivePath)
 
         $p = Start-Process -FilePath $ctx.RarPath `
             -ArgumentList $args `
@@ -685,11 +681,23 @@ function Invoke-Archiving {
             -PassThru `
             -NoNewWindow
 
+        $endTime = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+        $jobLog += ("$endTime END " + $archivePath + " CODE=" + $p.ExitCode)
+
         Write-Log $GlobalLog ("END " + $archivePath + " CODE=" + $p.ExitCode)
+
         if ($p.ExitCode -eq 0) {
+            $copyStart = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
             Copy-Remote $ctx $archivePath
+            $jobLog += ("$copyStart COPY REMOTE: " + $ctx.RemoteDest + "\" + $archiveName)
+            Write-Host "  [OK] Архив создан: $archiveName" -ForegroundColor Green
+        }
+        else {
+            $checkErrors++
+            Write-Host "  [FAIL] Ошибка архивации: $archiveName (CODE=$($p.ExitCode))" -ForegroundColor Red
         }
     }
+    return $checkErrors
 }
 
 # ------------------------
@@ -697,7 +705,8 @@ function Invoke-Archiving {
 # ------------------------
 function Invoke-Job {
     param($Config, $Job)
-
+    $checkErrors = 0
+    $jobLog = @()
     $ctx = @{
         Config             = $Config
         Job                = $Job
@@ -708,7 +717,7 @@ function Invoke-Job {
         LocalDestKeepCount = [int]$Job.LocalDestKeepCount
         RarPath            = $Config.Paths.RarPath
         RarHASH            = $Config.Paths.RarHASH
-        PCName             = $env:COMPUTERNAME
+        PCName             = $PCName
         Pattern            = ""
         Log                = ""
         ExcludeToday       = To-Bool $Job.ExcludeToday
@@ -717,7 +726,14 @@ function Invoke-Job {
         RemoteDest         = $Job.RemoteDest
     }
 
-    if (-not (Test-Path $ctx.Source)) { return }
+    if (-not (Test-Path $ctx.Source)) { 
+        $msg = "  [WARN] Источник не найден: $($ctx.Source)"
+        Write-Host $msg -ForegroundColor Yellow
+        $jobLog += ((Get-Date).ToString("yyyy-MM-dd HH:mm:ss") + " " + $msg)
+        $checkErrors++
+        return @{ Errors = $checkErrors; Log = $jobLog }
+    }
+
     if (-not (Test-Path $ctx.Dest)) {
         New-Item -ItemType Directory -Path $ctx.Dest | Out-Null
     }
@@ -733,8 +749,8 @@ function Invoke-Job {
     if ($Job.IndividualArchivePattern) { $ctx.Pattern = $Job.IndividualArchivePattern }
     if ($Job.SourceFilter) { $ctx.SourceFilter = $Job.SourceFilter }
 
-    Write-Log $GlobalLog "JOB START $ctx.JobName "
-
+    Write-Log $GlobalLog ("===== JOB START " + $ctx.JobName + " =====")
+    $jobLog += ((Get-Date).ToString("yyyy-MM-dd HH:mm:ss") + " ===== JOB START " + $ctx.JobName + " =====")
     $groups = @{}
 
     if ($ctx.ArchiveAll) {
@@ -750,15 +766,21 @@ function Invoke-Job {
         $groups = Prepare-IndividualFolders $ctx
     }
 
-    Invoke-Archiving $ctx $groups
+    $archivingErrors = Invoke-Archiving $ctx $groups
+    if ($null -ne $archivingErrors -and $archivingErrors -is [int]) {
+        $checkErrors = $checkErrors + $archivingErrors
+    }
 	
-    Remove-OldFiles `
+    $null = Remove-OldFiles `
         -Path $ctx.Dest `
         -DaysOld $ctx.LocalDestDaysOld `
         -KeepCount $ctx.LocalDestKeepCount `
         -Filter "*.*"
 
-    Write-Log $GlobalLog "JOB END"
+    Write-Log $GlobalLog ("===== /JOB END " + $ctx.JobName + " =====")
+    $jobLog += ((Get-Date).ToString("yyyy-MM-dd HH:mm:ss") + " ===== /JOB END " + $ctx.JobName + " =====")
+
+    return @{ Errors = $checkErrors; Log = $jobLog }
 }
 
 # ------------------------
@@ -775,38 +797,106 @@ if (-not (Test-FileIntegrity -FilePath $ConfigPath -ExpectedHash $XmlHash -FileT
     exit 1
 }
 
-[xml]$xml = Get-Content $ConfigPath
+# Загрузка XML
+[xml]$script:Config = Get-Content $ConfigPath
 
-if (-not (Test-FileIntegrity -FilePath $xml.BackupConfig.Paths.RarPath -ExpectedHash $xml.BackupConfig.Paths.RarHASH -FileType $xml.BackupConfig.Paths.RarPath)) {
-    Write-Host "ПРОВЕРКА RAR ПРОВАЛЕНА. Запуск скрипта запрещен." -ForegroundColor Red
+# === КЭШИРОВАНИЕ ПЕРЕМЕННЫХ ИЗ XML ===
+$script:General = $script:Config.BackupConfig.General
+$script:Paths = $script:Config.BackupConfig.Paths
+$script:Recipients = $script:Config.BackupConfig.Recipients
+
+# Основные переменные
+$script:JobName = $script:General.JobName
+$script:Domain = $script:General.Domain
+$script:SmtpServer = $script:General.SmtpServer
+$script:LogPathRoot = $script:Paths.LogPathRoot
+$script:LogDaysOld = [int]$script:Paths.LogDaysOld
+$script:LogKeepCount = [int]$script:Paths.LogKeepCount
+$script:RarPath = $script:Paths.RarPath
+$script:RarHash = $script:Paths.RarHASH
+
+$PCName = $env:COMPUTERNAME
+
+# === ИНИЦИАЛИЗАЦИЯ ГЛОБАЛЬНОГО ЛОГА ===
+$DateLog = (Get-Date).ToString("yyyy-MM-dd_HH-mm-ss")
+$script:GlobalLog = Join-Path $script:LogPathRoot ("$PCName" + "_" + $script:JobName + "_" + $DateLog + ".log")
+
+# Создаём папку логов если нет
+if (-not (Test-Path $script:LogPathRoot)) {
+    New-Item -ItemType Directory -Path $script:LogPathRoot | Out-Null
+}
+
+Write-Log $script:GlobalLog (" PCNAME: " + $PCName)
+
+if (-not (Test-FileIntegrity -FilePath $script:RarPath -ExpectedHash $script:RarHash  -FileType $script:RarPath)) {
+    Write-Host "ПРОВЕРКА RAR ПОВАЛЕНА. Запуск скрипта запрещен." -ForegroundColor Red
+    Write-Log $script:GlobalLog (" ERROR RarHASH: " + $script:RarPath)
     exit 1
 }
 
 if ($testmode) {
-    Invoke-TestMode -Config $xml
-    exit  # В тестовом режиме не выполняем основную логику
+    Invoke-TestMode -Config $script:Config
+    exit
 }
 
-$DateLog = (Get-Date).ToString("yyyy-MM-dd_HH-mm-ss")
+# === ОСНОВНОЙ ЦИКЛ  ===
+$totalErrors = 0  # === ОБЩИЙ СЧЕТЧИК ОШИБОК ВСЕХ ЗАДАНИЙ
+$jobResults = @{}  # === ХРАНИЛИЩЕ РЕЗУЛЬТАТОВ ПО ЗАДАНИЯМ
 
-$GlobalLog = Join-Path $xml.BackupConfig.Paths.LogPathRoot ($env:COMPUTERNAME + "_" + $xml.BackupConfig.General.JobName + "_" + $DateLog + ".log")
-
-foreach ($job in $xml.BackupConfig.Jobs.Job) {
-    Invoke-Job $xml.BackupConfig $job
+foreach ($job in $script:Config.BackupConfig.Jobs.Job) {
+    $result = Invoke-Job $script:Config.BackupConfig $job
+    $jobErrors = $result.Errors
+    $jobLog = $result.Log
+    
+    $jobResults[$job.Name] = @{
+        Errors = $jobErrors
+        Log    = $jobLog
+    }
+    
+    $totalErrors = $totalErrors + $jobErrors
+    
+    # === ВЫВОД РЕЗУЛЬТАТА ПО ЗАДАНИЮ ===
+    if ($jobErrors -eq 0) {
+        Write-Host ">> [ЗАДАНИЕ ОК] $($job.Name) - ошибок: $jobErrors" -ForegroundColor Green
+    }
+    else {
+        Write-Host ">> [ЗАДАНИЕ С ОШИБКАМИ] $($job.Name) - ошибок: $jobErrors" -ForegroundColor Red
+    }
 }
 
-# ------------------------
-# Post 
-# ------------------------
-$LogDaysOld = [int]$xml.BackupConfig.Paths.LogDaysOld
-$LogKeepCount = [int]$xml.BackupConfig.Paths.LogKeepCount
+foreach ($jobName in $jobResults.Keys) {
+    $result = $jobResults[$jobName]
+    $errors = $result.Errors
+    $jobLog = $result.Log
+    
+    # === ЗАГОЛОВОК ЗАДАНИЯ ===
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host "ЗАДАНИЕ: $jobName | Ошибок: $errors" -ForegroundColor $(if ($errors -eq 0) { "Green" } else { "Red" })
+    Write-Host "========================================" -ForegroundColor Cyan
+    
+    # === ВЫВОД ЛОГОВ ЗАДАНИЯ ===
+    foreach ($logLine in $jobLog) {
+        Write-Host "  $logLine" -ForegroundColor $(if ($logLine -match "FAIL|ERROR") { "Red" } elseif ($logLine -match "OK|START") { "Green" } else { "Gray" })
+    }
+    
+    Write-Host ""  # пустая строка между заданиями
+}
 
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "[ИТОГ] Всего заданий: $($jobResults.Count)" -ForegroundColor Cyan
+Write-Host "[ИТОГ] Всего ошибок: $totalErrors" -ForegroundColor $(if ($totalErrors -eq 0) { "Green" } else { "Red" })
+Write-Host "========================================" -ForegroundColor Cyan
+
+
+# Post
 $RemoveOldLogs = Remove-OldFiles `
-    -Path $xml.BackupConfig.Paths.LogPathRoot `
-    -DaysOld $LogDaysOld `
-    -KeepCount $LogKeepCount `
+    -Path $script:LogPathRoot `
+    -DaysOld $script:LogDaysOld `
+    -KeepCount $script:LogKeepCount `
     -Filter "*.*"
 
 $DiskInfo = Get-DiskSpaceReport
+Write-Log $script:GlobalLog "DISK: $DiskInfo"
 
-Write-Log $GlobalLog $DiskInfo
+Write-Log $script:GlobalLog "[TOTAL] JOBS: $($jobResults.Count)"
+Write-Log $script:GlobalLog "[TOTAL] ERRORS: $totalErrors"
