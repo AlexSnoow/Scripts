@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  CopyConfig — единая конфигурация для Backup powershell.exe -version 2.0
+-->
+<CopyConfig>
+  <General>
+    <JobName>CopyAllXml</JobName>
+    <Domain>localdomain.loc</Domain>
+    <SmtpServer>smtp.localdomain.loc</SmtpServer>
+  </General>
+
+  <Paths>
+    <LogPathRoot>C:\Work\Copy\logs</LogPathRoot>
+    <LogDaysOld>7</LogDaysOld>
+    <LogKeepCount>14</LogKeepCount>
+  </Paths>
+
+  <Recipients>
+    <AdminIS>user1@head.localdomain.loc</AdminIS>
+    <AdminOS>user2@head.localdomain.loc</AdminOS>
+    <AdminMail>user3@head.localdomain.loc</AdminMail>
+  </Recipients>
+
+  <Jobs>
+    <!-- ============================================================================================== -->
+    <!-- JOB1: Копирование файлов из Source в RemoteDest каждые 15 минут через Планировщик              -->
+    <!-- Проверка целостности при копировании                              						                  -->
+    <!-- Запись в лог о статусе Копирования из Source в RemoteDest                                      -->
+    <!-- Если Копирование успешно файл из Source переноситься в каталог Arhive                          -->
+    <!-- Таким образом если файл удачно скопирован он переноситься в Arhive, если нет остается в Source -->
+    <!-- Формируется файл reports_YYYYMMDD.xml со статусом работы скрипта за день,                      -->
+	  <!-- цель формирование отчета для отправки по почте                                                 -->
+    <!-- По почте отправляется отчет о работе скрипта за день используя даннные из reports_YYYYMMDD.xml -->
+    <!-- ============================================================================================== -->
+    <Job Name="JOB1">
+      <Source>C:\WORK\CopyAllXml\src\JOB1\</Source>
+      <RemoteDest>C:\WORK\CopyAllXml\dst\</RemoteDest>
+      <Arhive>C:\WORK\CopyAllXml\dst\arc\</Arhive>
+    </Job>
+  </Jobs>
+</CopyConfig>
