@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  CopyConfig — единая конфигурация для Backup powershell.exe -version 2.0
+  Copy-Config.xml — единая конфигурация для Backup powershell.exe -version 2.0
 -->
 <CopyConfig>
   <General>
-    <JobName>CopyAllXml</JobName>
+    <ParentJobName>CopyAllXml</ParentJobName>
     <Domain>localdomain.loc</Domain>
     <SmtpServer>smtp.localdomain.loc</SmtpServer>
   </General>
 
   <Paths>
-    <LogPathRoot>C:\Work\Copy\logs</LogPathRoot>
+    <LogPathRoot>C:\WORK\CopyAllXml\logs</LogPathRoot>
     <LogDaysOld>7</LogDaysOld>
     <LogKeepCount>14</LogKeepCount>
   </Paths>
