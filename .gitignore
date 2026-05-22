@@ -1,37 +1,18 @@
-# Logs
+```bash
+# Logs and temp files
 *.log
-*.log.*
-
-# Temporary files
 *.tmp
-*.bak
-*.cache
+*.swp
 
-# Test artifacts
-/test/
-/test_files/
-C_Test/
+# Environment
+.env
+.env.local
+*.env.*
 
-# Archives (should not be tracked)
-*.rar
-*.zip
-*.7z
-
-# OS files
-Thumbs.db
-desktop.ini
-
-# Editor files
+# Editors
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
 
-
-
-# PowerShell transcripts
-*transcript*.txt
-
-# Shadow copy links
-ShadowLink/
+# Original rules preserved
+*.log
+```
