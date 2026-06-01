@@ -1,4 +1,4 @@
-# PowerShell Script for File Copying and Verification (PS 2.0 Compatible)
+# PowerShell Script for File Copying and Verification based on Copy-Config.xml
 
 param(
     [Parameter(Mandatory=$true)]
@@ -14,18 +14,17 @@ function Verify-FileIntegrity {
         [Parameter(Mandatory=$true)]
         [string]$Destination
     )
-    Write-Host "   -> Проверка целостности файла (Размер)..."
-    # PS2.0 не поддерживает Get-FileHash. Проверяем наличие и совпадение размера.
+    Write-Host "   -> Проверка целостности файла..."
+    # Используем SHA256 для сравнения хеш-сумм
     try {
-        # Получаем информацию о файлах. В PS2.0 Get-Item используется для получения информации.
-        $SourceInfo = Get-Item $Source
-        $DestInfo = Get-Item $Destination
+        $SourceHash = Get-FileHash -Path $Source -Algorithm SHA256 | Select-Object -ExpandProperty Hash
+        $DestHash = Get-FileHash -Path $Destination -Algorithm SHA256 | Select-Object -ExpandProperty Hash
         
-        if ($SourceInfo.Length -eq $DestInfo.Length) {
-            Write-Host "   -> [OK] Файл проверен успешно (Размеры совпадают)." -ForegroundColor Green
+        if ($SourceHash -eq $DestHash) {
+            Write-Host "   -> [OK] Файл проверен успешно." -ForegroundColor Green
             return $true
         } else {
-            Write-Host "   -> [FAIL] Размеры файлов не совпадают. Файл поврежден. (Source: $($SourceInfo.Length) bytes, Dest: $($DestInfo.Length) bytes)" -ForegroundColor Red
+            Write-Host "   -> [FAIL] Хеш-суммы не совпадают. Файл поврежден." -ForegroundColor Red
             return $false
         }
     }
@@ -47,7 +46,7 @@ function Archive-File {
         $FileName = Split-Path -Path $SourceFile -Leaf
         $TargetArchivePath = Join-Path -Path $ArchiveDest -ChildPath $FileName
         
-        # Используем Move-Item для перемещения
+        # Используем Move-Item для перемещения (или Copy-Item + Remove-Item, но Move проще)
         Move-Item -Path $SourceFile -Destination $TargetArchivePath -Force
         Write-Host "   -> [OK] Файл успешно перемещен в архив." -ForegroundColor Green
         return $true
@@ -66,7 +65,6 @@ try {
     Write-Host "======================================================"
 
     # 1. Загрузка XML конфигурации
-    # Используем Get-Content и [xml] для парсинга XML, что совместимо с PS2.0
     [xml]$config = Get-Content $ConfigurationPath -Encoding UTF8
     
     # Проверка наличия секции Jobs
