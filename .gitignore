@@ -9,6 +9,7 @@
 
 # Test artifacts
 /test/
+/tests/
 /test_files/
 C_Test/
 

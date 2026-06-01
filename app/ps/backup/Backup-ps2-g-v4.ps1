@@ -405,16 +405,19 @@ function Remove-OldFiles {
                 try {
                     Remove-Item $file.FullName -Force -ErrorAction Stop
                     $results += "Removed: $($file.Name)"
-                } catch {
+                }
+                catch {
                     $results += "Error deleting: $($file.FullName) $_"
                 }
             }
-        } else {
+        }
+        else {
             $results += "There are no files to delete."
         }
 
         $results += "Rotation is complete. Kept: $($allFiles.Count - $filesToDelete.Count) / Total: $($allFiles.Count)"
-    } catch {
+    }
+    catch {
         $results += "Rotation error: $_"
     }
 
@@ -794,7 +797,6 @@ $script:RarPath = $script:Paths.RarPath
 $script:RarHash = $script:Paths.RarHASH
 
 $PCName = $env:COMPUTERNAME
-# $PCName = "FXGATE"
 
 # === »Õ»÷»¿À»«¿÷»ﬂ √ÀŒ¡¿À‹ÕŒ√Œ ÀŒ√¿ ===
 $DateLog = (Get-Date).ToString("yyyy-MM-dd_HH-mm")
@@ -887,13 +889,14 @@ $recipients = $Config.BackupConfig.Recipients.AdminMail
 $ParentJobName = $script:Config.BackupConfig.General.JobName
 
 if ($totalErrors -eq 0) {
-  $SubjectMail = "BACKUP SUCCESS $ParentJobName $PCName "
-  #$recipients = $Config.BackupConfig.Recipients.AdminIS
-  $exitcode = 0
-}else{
-  $SubjectMail = "BACKUP ERRORS: $totalErrors $ParentJobName $PCName "
-  #$recipients = "$Config.BackupConfig.Recipients.AdminIS , $Config.BackupConfig.Recipients.AdminOS "
-  $exitcode = 1
+    $SubjectMail = "BACKUP SUCCESS $ParentJobName $PCName "
+    #$recipients = $Config.BackupConfig.Recipients.AdminIS
+    $exitcode = 0
+}
+else {
+    $SubjectMail = "BACKUP ERRORS: $totalErrors $ParentJobName $PCName "
+    #$recipients = "$Config.BackupConfig.Recipients.AdminIS , $Config.BackupConfig.Recipients.AdminOS "
+    $exitcode = 1
 }
 
 Send-Email -Config $Config -To $recipients -Subject $SubjectMail -Body $BodyMailLog

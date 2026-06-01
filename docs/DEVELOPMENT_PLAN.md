@@ -1,5 +1,9 @@
 # План развития проекта PowerShell Backup Toolkit
 
+> **⚠️ Отложено до отдельного спринта.**
+> Текущий спринт: обновление конституции и документации (см. docs/constitution.md, docs/specify.md, docs/plan.md).
+> Необходимые обновления: таблица модулей (5 типов вместо 2), rename Start-RarArchive → Invoke-Archiving в PIPELINE_TEMPLATE.md.
+
 ## Текущее состояние
 
 ### Что есть

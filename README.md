@@ -1,4 +1,4 @@
-# PowerShell Backup Toolkit
+# PowerShell Backup Toolkit — Multi-Platform File Operations
 
 **Набор скриптов резервного и обычного копирования файлов. PowerShell 2.0, Linux, Solaris.**
 
@@ -75,18 +75,24 @@ Scripts/
 
 ## Архитектура
 
-### Два модуля
+### Модули
 
 | Модуль | Каталог | Платформы | Назначение |
 |--------|---------|-----------|------------|
-| **Backup** | `app/ps/backup/` | Windows (PS2.0) | Резервное копирование с архиватором RAR |
-| **Copy**   | `app/ps/copy/`   | Windows (PS2.0) | Обычное копирование без архиватора |
-| **Backup** | `app/bash/`      | Linux/Solaris | Резервное копирование с архиватором |
+| **Backup**  | `app/ps/backup/`  | Windows (PS2.0) | Архивация (RAR/7zip/zip) |
+| **Copy**    | `app/ps/copy/`    | Windows (PS2.0) | Копирование с верификацией |
+| **Sync**    | `app/ps/sync/`    | Windows (PS2.0) | Синхронизация source↔dest |
+| **Cleanup** | `app/ps/cleanup/` | Windows (PS2.0) | Удаление по маскам/политикам |
+| **Monitor** | `app/ps/monitor/` | Windows (PS2.0) | Проверка системы |
+| **Backup**  | `app/bash/`       | Linux/Solaris   | Архивация (tar.gz) |
+| **Sync**    | `app/bash/`       | Linux/Solaris   | Синхронизация source↔dest |
+| **Cleanup** | `app/bash/`       | Linux/Solaris   | Удаление по маскам |
+| **Monitor** | `app/bash/`       | Linux/Solaris   | Проверка системы |
 
 ### 5-этапный пайплайн (Backup)
 
 1. **Preparation** — Сканирование источников, проверка файлов по маскам
-2. **Archiving** — Создание RAR-архивов (единый механизм `Invoke-ArchivePipeline`)
+2. **Archiving** — Создание архивов (RAR/7zip/tar.gz) (единый механизм `Invoke-ArchivePipeline`)
 3. **Verification** — Проверка целостности архивов
 4. **Post-Operations** — Копирование в сетное хранилище, ротация, удаление
 5. **Reporting** — XML/CSV отчёты, отправка email
@@ -144,7 +150,9 @@ Scripts/
 
 ---
 
-## Режимы архивации (Backup)
+## Режимы архивации
+
+### PowerShell (Backup)
 
 | Режим | XML параметр | Описание |
 |-------|-------------|----------|
@@ -153,9 +161,20 @@ Scripts/
 | IndividualFiles | `<ArchiveIndividualFiles>true</ArchiveIndividualFiles>` | Каждый файл в отдельный архив |
 | IndividualFolders | `<ArchiveIndividualFolders>true</ArchiveIndividualFolders>` | Каждая папка в отдельный архив |
 
+### Bash (Backup)
+
+| Режим | Параметр | Описание |
+|-------|---------|----------|
+| archive_by_date | `archive_by_date` | Группировка по дате |
+| individual_files | `individual_files` | Каждый файл отдельно |
+| individual_folders | `individual_folders` | Каждая папка отдельно |
+| archive_all | `archive_all` | Всё рекурсивно |
+
 ---
 
-## Совместимость с PowerShell 2.0
+## Совместимость платформ
+
+### PowerShell 2.0
 
 | Функция | Статус | Примечание |
 |---------|--------|------------|
@@ -163,6 +182,15 @@ Scripts/
 | `New-Object PSObject` | ✅ | Поддерживается |
 | `Get-FileHashCompat` | ✅ | Кастомная реализация (SHA256) |
 | `Test-StringIsNullOrWhiteSpace` | ✅ | Кастомная функция |
+
+### Bash 3.0+
+
+| Конструкция | Статус | Примечание |
+|------------|--------|------------|
+| `mapfile`/`readarray` | ❌ | Запрещено (bash 4+) |
+| `declare -A` (ассоциативные массивы) | ❌ | Запрещено (bash 4+) |
+| process substitution `<()` | ❌ | Использовать временные файлы |
+| `[[ ... =~ ... ]]` (regex) | ⚠️ | Нестабильно на Solaris |
 
 ---
 
@@ -191,6 +219,10 @@ Scripts/
 - `docs/REFactoring-NOTES.md` — Примечания по рефакторингу
 - `docs/FUNCTIONS_REFERENCE.md` — English function reference
 - `docs/constitution.md` — Team constitution
+- `docs/specify.md` — Domain specification (what and why)
+- `docs/plan.md` — Architecture and tech stack
+- `docs/PIPELINE_TEMPLATE.md` — Шаблон 5-Stage Pipeline
+- `docs/patterns/COMMON_FUNCTIONS.md` — Общие функции и паттерны кода
 - `docs/copy/README.md` — Документация модуля Copy
 - `docs/copy/REFactoring-NOTES.md` — Примечания по Copy рефакторингу
 - `app/bash/info.md` — Описание bash-скриптов
