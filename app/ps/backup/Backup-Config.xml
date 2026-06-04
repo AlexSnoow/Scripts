@@ -8,16 +8,16 @@
     <Domain>localdomain.loc</Domain>
     <SmtpServer>smtp.localdomain.loc</SmtpServer>
     <!-- ===== /7zip ==== -->
-    <!-- <ArchiverType>7z</ArchiverType>
+    <ArchiverType>7z</ArchiverType>
     <Default7zParameters>
       <Param>a</Param>
       <Param>-mx3</Param>
       <Param>-r</Param>
       <Param>-wD:\BACKUP</Param>
-    </Default7zParameters> -->
+    </Default7zParameters>
     <!-- ===== /7zip ==== -->
     <!-- ===== RAR ==== -->
-    <ArchiverType>RAR</ArchiverType>
+    <!-- <ArchiverType>RAR</ArchiverType>
     <DefaultRarParameters>
       <Param>a</Param>
       <Param>-m3</Param>
@@ -25,9 +25,8 @@
       <Param>-rr3p</Param>
       <Param>-r</Param>
       <Param>-t</Param>
-      <!-- <Param>-tl</Param> -->
       <Param>-wD:\BACKUP</Param>
-    </DefaultRarParameters>
+    </DefaultRarParameters> -->
     <!-- ===== /RAR ==== -->
 
   </General>
@@ -134,7 +133,7 @@
       <ExcludeFilePattern></ExcludeFilePattern>
       <LocalDest>C:\Work\BackupAllXml\dst\Local\JOB3\</LocalDest>
       <LocalDestDaysOld>60</LocalDestDaysOld>
-      <LocalDestKeepCount>2</LocalDestKeepCount>    
+      <LocalDestKeepCount>60</LocalDestKeepCount>    
       <RemoteDest>C:\Work\BackupAllXml\dst\Remote\</RemoteDest>
       <ArhErrorLog>true</ArhErrorLog>
     </Job>
