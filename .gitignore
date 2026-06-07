@@ -40,3 +40,5 @@ ShadowLink/
 .kilo/
 .gigacode/
 tasks/
+*.zip
+*.7z
