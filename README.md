@@ -77,17 +77,17 @@ Scripts/
 
 ### Модули
 
-| Модуль | Каталог | Платформы | Назначение |
-|--------|---------|-----------|------------|
-| **Backup**  | `app/ps/backup/`  | Windows (PS2.0) | Архивация (RAR/7zip/zip) |
-| **Copy**    | `app/ps/copy/`    | Windows (PS2.0) | Копирование с верификацией |
-| **Sync**    | `app/ps/sync/`    | Windows (PS2.0) | Синхронизация source↔dest |
+| Модуль      | Каталог           | Платформы       | Назначение                   |
+| ----------- | ----------------- | --------------- | ---------------------------- |
+| **Backup**  | `app/ps/backup/`  | Windows (PS2.0) | Архивация (RAR/7zip/zip)     |
+| **Copy**    | `app/ps/copy/`    | Windows (PS2.0) | Копирование с верификацией   |
+| **Sync**    | `app/ps/sync/`    | Windows (PS2.0) | Синхронизация source↔dest    |
 | **Cleanup** | `app/ps/cleanup/` | Windows (PS2.0) | Удаление по маскам/политикам |
-| **Monitor** | `app/ps/monitor/` | Windows (PS2.0) | Проверка системы |
-| **Backup**  | `app/bash/`       | Linux/Solaris   | Архивация (tar.gz) |
-| **Sync**    | `app/bash/`       | Linux/Solaris   | Синхронизация source↔dest |
-| **Cleanup** | `app/bash/`       | Linux/Solaris   | Удаление по маскам |
-| **Monitor** | `app/bash/`       | Linux/Solaris   | Проверка системы |
+| **Monitor** | `app/ps/monitor/` | Windows (PS2.0) | Проверка системы             |
+| **Backup**  | `app/bash/`       | Linux/Solaris   | Архивация (tar.gz)           |
+| **Sync**    | `app/bash/`       | Linux/Solaris   | Синхронизация source↔dest    |
+| **Cleanup** | `app/bash/`       | Linux/Solaris   | Удаление по маскам           |
+| **Monitor** | `app/bash/`       | Linux/Solaris   | Проверка системы             |
 
 ### 5-этапный пайплайн (Backup)
 
@@ -154,21 +154,21 @@ Scripts/
 
 ### PowerShell (Backup)
 
-| Режим | XML параметр | Описание |
-|-------|-------------|----------|
-| Normal | (нет) | Весь источник в один архив |
-| ArchiveByDate | `<ArchiveByDate>true</ArchiveByDate>` | Группировка по дате LastWriteTime |
-| IndividualFiles | `<ArchiveIndividualFiles>true</ArchiveIndividualFiles>` | Каждый файл в отдельный архив |
-| IndividualFolders | `<ArchiveIndividualFolders>true</ArchiveIndividualFolders>` | Каждая папка в отдельный архив |
+| Режим             | XML параметр                                                | Описание                          |
+| ----------------- | ----------------------------------------------------------- | --------------------------------- |
+| Normal            | (нет)                                                       | Весь источник в один архив        |
+| ArchiveByDate     | `<ArchiveByDate>true</ArchiveByDate>`                       | Группировка по дате LastWriteTime |
+| IndividualFiles   | `<ArchiveIndividualFiles>true</ArchiveIndividualFiles>`     | Каждый файл в отдельный архив     |
+| IndividualFolders | `<ArchiveIndividualFolders>true</ArchiveIndividualFolders>` | Каждая папка в отдельный архив    |
 
 ### Bash (Backup)
 
-| Режим | Параметр | Описание |
-|-------|---------|----------|
-| archive_by_date | `archive_by_date` | Группировка по дате |
-| individual_files | `individual_files` | Каждый файл отдельно |
+| Режим              | Параметр             | Описание              |
+| ------------------ | -------------------- | --------------------- |
+| archive_by_date    | `archive_by_date`    | Группировка по дате   |
+| individual_files   | `individual_files`   | Каждый файл отдельно  |
 | individual_folders | `individual_folders` | Каждая папка отдельно |
-| archive_all | `archive_all` | Всё рекурсивно |
+| archive_all        | `archive_all`        | Всё рекурсивно        |
 
 ---
 
@@ -176,36 +176,36 @@ Scripts/
 
 ### PowerShell 2.0
 
-| Функция | Статус | Примечание |
-|---------|--------|------------|
-| `[CmdletBinding()]` | ✅ | Поддерживается |
-| `New-Object PSObject` | ✅ | Поддерживается |
-| `Get-FileHashCompat` | ✅ | Кастомная реализация (SHA256) |
-| `Test-StringIsNullOrWhiteSpace` | ✅ | Кастомная функция |
+| Функция                         | Статус | Примечание                    |
+| ------------------------------- | ------ | ----------------------------- |
+| `[CmdletBinding()]`             | ✅      | Поддерживается                |
+| `New-Object PSObject`           | ✅      | Поддерживается                |
+| `Get-FileHashCompat`            | ✅      | Кастомная реализация (SHA256) |
+| `Test-StringIsNullOrWhiteSpace` | ✅      | Кастомная функция             |
 
 ### Bash 3.0+
 
-| Конструкция | Статус | Примечание |
-|------------|--------|------------|
-| `mapfile`/`readarray` | ❌ | Запрещено (bash 4+) |
-| `declare -A` (ассоциативные массивы) | ❌ | Запрещено (bash 4+) |
-| process substitution `<()` | ❌ | Использовать временные файлы |
-| `[[ ... =~ ... ]]` (regex) | ⚠️ | Нестабильно на Solaris |
+| Конструкция                          | Статус | Примечание                   |
+| ------------------------------------ | ------ | ---------------------------- |
+| `mapfile`/`readarray`                | ❌      | Запрещено (bash 4+)          |
+| `declare -A` (ассоциативные массивы) | ❌      | Запрещено (bash 4+)          |
+| process substitution `<()`           | ❌      | Использовать временные файлы |
+| `[[ ... =~ ... ]]` (regex)           | ⚠️      | Нестабильно на Solaris       |
 
 ---
 
 ## Шаблон имён архивов
 
-| Переменная | Описание | Пример |
-|------------|----------|--------|
-| `{PCName}` | Имя компьютера | `PC001` |
-| `{JobName}` | Имя задания | `JOB1` |
-| `{Date}` | Дата (YYYYMMDD) | `20260412` |
-| `{Time}` | Время (HHMMSS) | `153045` |
-| `{Date_Time}` | Дата+Время | `20260412_153045` |
-| `{SourceFileName}` | Имя исходного файла | `data.log` |
-| `{SourceFolderName}` | Имя исходной папки | `20260410` |
-| `{LastWriteDate}` | Дата LastWriteTime | `20260330` |
+| Переменная           | Описание            | Пример            |
+| -------------------- | ------------------- | ----------------- |
+| `{PCName}`           | Имя компьютера      | `PC001`           |
+| `{JobName}`          | Имя задания         | `JOB1`            |
+| `{Date}`             | Дата (YYYYMMDD)     | `20260412`        |
+| `{Time}`             | Время (HHMMSS)      | `153045`          |
+| `{Date_Time}`        | Дата+Время          | `20260412_153045` |
+| `{SourceFileName}`   | Имя исходного файла | `data.log`        |
+| `{SourceFolderName}` | Имя исходной папки  | `20260410`        |
+| `{LastWriteDate}`    | Дата LastWriteTime  | `20260330`        |
 
 ---
 
@@ -226,20 +226,22 @@ Scripts/
 - `docs/copy/README.md` — Документация модуля Copy
 - `docs/copy/REFactoring-NOTES.md` — Примечания по Copy рефакторингу
 - `app/bash/info.md` — Описание bash-скриптов
+- `docs/roadmap.md` — Roadmap планы развития проекта
+- `tasks/` - список задач по проекту
 
 ---
 
 ## История версий
 
 ### PowerShell Backup
-| Версия | Статус | Описание |
-|--------|--------|----------|
-| v4 | ✅ Актуальная | Unified Pipeline, RAR -df, архивация с ротацией |
-| v3 | ⚠️ Устаревшая | Unified Pipeline для всех режимов |
-| v2 | ⚠️ Устаревшая | Сетевые отчёты через NetLogPath |
-| v1 | ⚠️ Устаревшая | Initial Unified Pipeline |
+| Версия | Статус       | Описание                                        |
+| ------ | ------------ | ----------------------------------------------- |
+| v4     | ✅ Актуальная | Unified Pipeline, RAR -df, архивация с ротацией |
+| v3     | ⚠️ Устаревшая | Unified Pipeline для всех режимов               |
+| v2     | ⚠️ Устаревшая | Сетевые отчёты через NetLogPath                 |
+| v1     | ⚠️ Устаревшая | Initial Unified Pipeline                        |
 
 ### PowerShell Copy
-| Версия | Статус | Описание |
-|--------|--------|----------|
-| v4 | ✅ Актуальная | Копирование по XML с верификацией и архивацией |
+| Версия | Статус       | Описание                                       |
+| ------ | ------------ | ---------------------------------------------- |
+| v4     | ✅ Актуальная | Копирование по XML с верификацией и архивацией |
