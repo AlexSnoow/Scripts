@@ -37,3 +37,6 @@ desktop.ini
 # Shadow copy links
 ShadowLink/
 .tasks/
+.kilo/
+.gigacode/
+tasks/
