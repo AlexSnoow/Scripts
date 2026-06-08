@@ -1,162 +1,97 @@
 ```mermaid
 flowchart TD
-    A[Start] --> B[Run Script]
-    B --> C{XML File Found?}
-    C -->|No| D[Critical Error: XML Not Found<br/>Exit 1]
-    C -->|Yes| E[Verify XML Hash]
-    E -->|Hash Mismatch| F[XML Validation Failed<br/>Exit 1]
-    E -->|Hash Matches| G[XML Verified Successfully]
-    G --> H[Load Configuration from XML]
-    H --> I{Archiver Type = RAR?}
-    I -->|No| J[Critical Error: Only RAR Supported<br/>Exit 1]
-    I -->|Yes| K[Build Config Hash Tables]
-    K --> L[Extract Variables:<br/>PCName, SmtpServer, AdminMail]
-    L --> M{Test Mode?}
-    M -->|Yes| N[Test Mode Checks:<br/>- Check Archiver<br/>- Check Sources<br/>- Check Write Permissions<br/>- Check SMTP<br/>- Check Recipients<br/>- Send Test Email]
-    N --> Z[Exit]
-    M -->|No| O[Initialize Logging<br/>Create Log File]
-    O --> P[Log Section: SCRIPT START]
-    P --> Q[Validate Configuration]
-    Q -->|Invalid| R[Output Errors<br/>Exit 1]
-    Q -->|Valid| S[Log Windows Event: Start]
-    S --> T[For Each Job in Config]
-    T --> U[Log Section: JOB: job_name]
-    U --> V[Check/Create Directories:<br/>Source, LocalDest, RemoteDest]
-    V --> W[Get File Info Details<br/>Analyze Source]
-    W --> X{Source Check Masks?}
-    X -->|Yes| Y[Filter File List by Masks]
-    X -->|No| AA[Skip Filtering]
-    Y --> AB{List Source Flag?}
-    AA --> AB
-    AB -->|Yes| AC[Get File List<br/>Create TXT/CSV List]
-    AB -->|No| AD[Skip File Listing]
-    AC --> AE{Archive Mode?}
-    AD --> AE
-    AE -->|Individual Files| AF[Individual File Archivation<br/>Prepare-ArchiveItems + Invoke-ArchivePipeline]
-    AE -->|Individual Folders| AG[Individual Folder Archivation<br/>Prepare-ArchiveItems + Invoke-ArchivePipeline]
-    AE -->|Normal| AH[Normal Archivation<br/>Invoke-ArchivePipeline]
-    AF --> AI[Invoke-Verification<br/>Compare Files Source Archive]
-    AG --> AI
-    AH --> AI
-    AI --> AJ{Verification Passed?}
-    AJ -->|No| AK[ERROR: Integrity Violation]
-    AJ -->|Yes| AL[Verification Passed]
-    AK --> AM{Remote Dest Accessible?}
-    AL --> AM
-    AM -->|Yes| AN[Copy Backup File to Remote Storage]
-    AN --> AO{Remove Remote Dest Flag?}
-    AM -->|No| AP[WARNING: Saved Locally Only]
-    AO -->|Yes| AQ[Remove-OldFiles<br/>Rotate Remote Storage]
-    AO -->|No| AR[Skip Remote Rotation]
-    AP --> AS[Remove-OldFiles<br/>Rotate Local Storage]
-    AQ --> AS
-    AR --> AS
-    AS --> AT{Remove Source Flag?}
-    AT -->|Yes| AU{Individual Mode?}
-    AT -->|No| AV[Remove-OldFiles<br/>Rotate Source]
-    AU -->|Yes| AW[Verify Before Deletion<br/>Compare Files Source Archive]
-    AU -->|No| AV
-    AW --> AX{All Verified?}
-    AX -->|Yes| AY[Delete Verified Files/Folders]
-    AX -->|No| AZ[WARNING: Deletion Cancelled]
-    AY --> BA[Write XML Report for Job]
-    AZ --> BA
-    AV --> BA
-    BA --> BB{More Jobs?}
-    BB -->|Yes| T
-    BB -->|No| BC[Remove-OldFiles<br/>Cleanup Old Logs]
-    BC --> BD[Get Disk Space Report]
-    BD --> BE[Log Section: FINAL RESULTS]
-    BE --> BF[Write Summary XML Report]
-    BF --> BG[Get Log Results<br/>Format Email Text]
-    BG --> BH{Errors Exist?}
-    BH -->|Yes| BI[Subject: ERRORS DETECTED<br/>Recipients: AdminIS, AdminOS<br/>EventLog: Error]
-    BH -->|No| BJ[Subject: SUCCESS<br/>Recipients: AdminIS, AdminMail<br/>EventLog: Success]
-    BI --> BK[Send Email Report]
-    BJ --> BK
-    BK --> BL[EventLog: End]
-    BL --> BM{Error Count > 0?}
-    BM -->|Yes| BN[Exit 1]
-    BM -->|No| BO[Exit 0]
+    A[Start] --> B[Load Backup-Config.xml]
+    B -->|Not Found| C[Exit 1: Config Not Found]
+    B -->|Found| D[Parse XML, Cache Variables]
+    D --> E[Initialize Log File<br/>CP866 Encoding]
+    E --> F[Test-FileIntegrity<br/>Archiver SHA256 Check]
+    F -->|Mismatch| G[Exit 1: Archiver Integrity Failed]
+    F -->|OK| H{Test Mode?}
+
+    H -->|Yes| I[Invoke-TestMode]
+    I --> I1[For Each Job: Check Source, Dest, Permissions]
+    I1 --> I2[Send Email with Results]
+    I2 --> I3{Errors?}
+    I3 -->|No| I4[Exit 0]
+    I3 -->|Yes| I5[Exit 1]
+
+    H -->|No| J[Stage 1: Preparation]
+    J --> J1[Log: SCRIPT START]
+    J1 --> J2{Jobs Exist?}
+    J2 -->|No| J3[Exit 1: No Jobs Found]
+    J2 -->|Yes| K[For Each Job]
+
+    K --> L[Invoke-Job]
+    L --> L1[Log: JOB START]
+    L1 --> L2{Source Exists?}
+    L2 -->|No| L3[WARN: Source Not Found<br/>Error++]
+    L2 -->|Yes| L4[Create Dest/RemoteDest Dirs]
+    L4 --> L5[Select Mode: ArchiveAll/ByDate/Files/Folders]
+    L5 --> L6[Group Files into $groups]
+
+    L6 --> M[Invoke-Archiving]
+    M --> M1[For Each Group]
+    M1 --> M2[Resolve-Name<br/>Replace Placeholders]
+    M2 --> M3{Archive File Exists?}
+    M3 -->|Yes| M4[Add Suffix _1, _2, ...]
+    M3 -->|No| M5[Create List File .txt]
+    M4 --> M5
+
+    M5 --> N[Stage 2: Main Operation]
+    N --> N1[Run Archiver<br/>Start-Process]
+    N1 --> N2{ExitCode = 0?}
+    N2 -->|No| N3[FAIL: Archive Error<br/>Error++, Continue]
+    N2 -->|Yes| O[Stage 3: Verification]
+
+    O --> O1[Test-ArchiveIntegrity<br/>rar t / 7z t]
+    O1 --> O2{Integrity OK?}
+    O2 -->|No| O3[FAIL: Integrity Check<br/>Error++, Continue]
+    O2 -->|Yes| P[Stage 4: Post-Operations]
+
+    P --> P1[Copy-Remote<br/>Copy to RemoteDest]
+    P1 --> Q{More Groups?}
+    Q -->|Yes| M1
+    Q -->|No| R[Stage 4: Local Rotation]
+    R --> R1[Remove-OldFiles<br/>DaysOld + KeepCount]
+    R1 --> R2[Log: JOB END]
+    R2 --> S{More Jobs?}
+    S -->|Yes| K
+    S -->|No| T[Stage 4: Log Cleanup]
+
+    T --> T1[Remove-OldFiles for Logs]
+    T1 --> T2[Get-DiskSpaceReport]
+    T2 --> U[Stage 5: Reporting]
+
+    U --> U1[Console Summary]
+    U1 --> U2[Read Log File]
+    U2 --> U3{Total Errors = 0?}
+    U3 -->|Yes| U4[Subject: BACKUP SUCCESS]
+    U3 -->|No| U5[Subject: BACKUP ERRORS]
+    U4 --> V[Send-Email]
+    U5 --> V
+    V --> W[Exit with Code]
+    W -->|Errors = 0| X[Exit 0]
+    W -->|Errors > 0| Y[Exit 1]
 ```
 
----
+## Соответствие коду (backup-ps2-v6.ps1)
 
-## Ключевые исправления
-
-### 1. Синтаксис многострочного текста
-**Было (неправильно):**
-```mermaid
-:КРИТИЧЕСКАЯ ОШИБКА:\nexit 1;
-```
-
-**Стало (правильно):**
-```mermaid
-[Critical Error: XML Not Found<br/>Exit 1]
-```
-
-### 2. Условные переходы
-**Было (неправильно):**
-```mermaid
-if (XML найден?) then (нет)
-```
-
-**Стало (правильно):**
-```mermaid
-C{XML File Found?}
-C -->|No| D[...]
-C -->|Yes| E[...]
-```
-
-### 3. Циклы
-**Было (неправильно):**
-```mermaid
-repeat
-...
-repeat while (Есть ещё задания?) is (да)
-```
-
-**Стало (правильно):**
-```mermaid
-BB{More Jobs?}
-BB -->|Yes| T
-BB -->|No| BC
-```
-
-### 4. Отсутствие `partition`
-В Mermaid используется `subgraph` вместо `partition`:
-```mermaid
-subgraph "Phase 1"
-    A --> B
-end
-```
-
-Но в простой схеме можно обойтись без него.
-
-### 5. Неправильные стрелки
-**Было (неправильно):**
-```mermaid
--> нет;
-```
-
-**Стало (правильно):**
-```mermaid
-BB -->|No| BC
-```
-
-## Рекомендации
-
-1. **Для сложных схем** используйте `subgraph` для группировки:
-```mermaid
-subgraph "Phase 0: XML Check"
-    A --> B
-end
-```
-
-2. **Для стилей** можно добавить:
-```mermaid
-style A fill:#f9f,stroke:#333
-style B fill:#bbf,stroke:#333
-```
-
-3. **Для вертикальной ориентации** можно использовать `TD` (top-down) или `BT` (bottom-top)
+| Этап скрипта | Узел диаграммы | Строки кода |
+|--------------|----------------|-------------|
+| Загрузка конфига | B → D | 835-848 |
+| Проверка архиватора | F | 872-877 |
+| Тестовый режим | H → I | 879-882, 753-827 |
+| Проверка источника | L2 | 698-703 |
+| Создание каталогов | L4 | 704-709 |
+| Выбор режима группировки | L5 | 712-724 |
+| Резолв имени архива | M2 | 613-619 |
+| Добавление суффикса | M3 → M4 | 621-630 |
+| Запуск архиватора | N1 | 637-641 |
+| Проверка ExitCode | N2 | 642-646 |
+| Проверка целостности | O1 | 649, 460-484 |
+| Копирование в сеть | P1 | 655, 257-268 |
+| Локальная ротация | R1 | 731-735 |
+| Ротация логов | T1 | 915-920 |
+| Информация о дисках | T2 | 922-923 |
+| Email | V | 959 |
+| Exit | W | 961 |
