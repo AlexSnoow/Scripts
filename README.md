@@ -11,10 +11,10 @@
 
 ```powershell
 # Резервное копирование с архиватором RAR
-powershell.exe -Version 2.0 -executionpolicy RemoteSigned -file .\app\ps\backup\Backup-ps2-g-v4.ps1
+powershell.exe -Version 2.0 -executionpolicy RemoteSigned -file .\app\ps\backup\backup-ps2-v6.ps1
 
 # Тестовый режим (без реальных операций)
-powershell.exe -Version 2.0 -executionpolicy RemoteSigned -file .\app\ps\backup\Backup-ps2-g-v4.ps1 -testmode
+powershell.exe -Version 2.0 -executionpolicy RemoteSigned -file .\app\ps\backup\backup-ps2-v6.ps1 -testmode
 
 # Обычное копирование без архиватора
 powershell.exe -executionpolicy RemoteSigned -file .\app\ps\copy\copy-ps2-v4.ps1 -ConfigurationPath .\app\ps\copy\Copy-Config.xml
@@ -34,19 +34,7 @@ bash app/bash/backup-g-v4.sh --testmode
 
 ## Структура проекта
 
-```
-Scripts/
-├── app/
-│   ├── ps/
-│   │   ├── backup/          # PowerShell — резервное копирование с архиватором
-│   │   └── copy/            # PowerShell — обычное копирование без архиватора
-│   └── bash/
-│       ├── backup/          # Linux/Solaris — резервное копирование с архиватором
-│       └── copy/            # Linux/Solaris — обычное копирование без архиватора
-├── docs/
-├── README.md                      # Этот файл
-└── AGENTS.md                      # Инструкция для AI-агентов
-```
+Актуальная структура проекта — [structure.md](docs/wiki/structure.md) (обновляется при изменениях).
 
 ---
 
@@ -58,10 +46,7 @@ Scripts/
 | -------------- | ----------------- | --------------- | ---------------------------- |
 | **PSBackup**   | `app/ps/backup/`  | Windows (PS2.0) | Архивация (RAR/7zip/zip)     |
 | **PSCopy**     | `app/ps/copy/`    | Windows (PS2.0) | Копирование с верификацией   |
-| **PSSync**     | `app/ps/sync/`    | Windows (PS2.0) | Синхронизация source↔dest    |
 | **BashBackup** | `app/bash/backup/`| Linux/Solaris   | Архивация (tar.gz)           |
-| **BashCopy**   | `app/bash/copy/`  | Linux/Solaris   | Копирование с верификацией   |
-| **BashSync**   | `app/bash/sync/`  | Linux/Solaris   | Синхронизация source↔dest    |
 
 ### 5-этапный пайплайн (Общий для всех режимов и ОС)
 
@@ -181,8 +166,8 @@ Scripts/
 - **Knowledge base:** `docs/wiki/` - База знаний по проекту. Ведется и форматируется исключительно агентом.
 - **Knowledge map:** `docs/wiki/index.md` - Основная карта знаний проекта.
 - **Log Knowledge:** `docs/wiki/log.md` - Журнал автоматических правок агентов.
-- **Dev plan:** `docs/DEVELOPMENT_PLAN.md` - План разработки по проекту
-- **Process diagrams:** `docs/diagrams/` - Диаграммы работы скриптов
+- **Dev plan:** `docs/roadmap.md` — План разработки по проекту
+- **Process diagrams:** `docs/diagrams/` — Диаграммы работы скриптов
 
 ---
 

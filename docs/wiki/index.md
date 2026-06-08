@@ -5,7 +5,8 @@
 * [[archive-modes]] — Backup archive modes and patterns | 2026-06-08
 
 ## Architecture
-* [[pipeline-template]] — 5-Stage Pipeline Template for all scripts | 2026-06-08
+* [[structure]] — Project structure (current) | 2026-06-08
+* [[pipeline-template]] — 5-Stage Pipeline Template for Backup and Copy | 2026-06-08
 * [[common-functions]] — Shared functions across modules | 2026-06-08
 
 ## Platform

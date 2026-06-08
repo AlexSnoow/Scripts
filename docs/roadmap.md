@@ -21,9 +21,9 @@ Backup, Copy, Sync, Cleanup, Monitor — на PowerShell 2.0 (Windows 7+) и Bas
 | Backup | PS 2.0 | `app/ps/backup/backup-ps2-v6.ps1` | ✅ Работает |
 | Copy | PS 2.0 | `app/ps/copy/copy-ps2-v4.ps1` | ⚠️ Базовый, нужны доработки |
 | Backup | Bash 3.0+ | `app/bash/backup/backup-g-v4.sh` | ✅ Работает |
-| Sync | PS 2.0 | Skeleton в `PIPELINE_TEMPLATE.md` | ⏳ Требует реализации |
-| Cleanup | PS 2.0 | Skeleton в `PIPELINE_TEMPLATE.md` | ⏳ Требует реализации |
-| Monitor | PS 2.0 | Skeleton в `PIPELINE_TEMPLATE.md` | ⏳ Требует реализации |
+| Sync | PS 2.0 | Skeleton (см. [[pipeline-template]]) | ⏳ Требует реализации |
+| Cleanup | PS 2.0 | Skeleton (см. [[pipeline-template]]) | ⏳ Требует реализации |
+| Monitor | PS 2.0 | Skeleton (см. [[pipeline-template]]) | ⏳ Требует реализации |
 
 ---
 
@@ -123,7 +123,7 @@ Backup, Copy, Sync, Cleanup, Monitor — на PowerShell 2.0 (Windows 7+) и Bas
 
 | ID | Задача | Дата | Результат |
 |----|--------|------|-----------|
-| BACKLOG-001 | Документация Copy | 2026-06 | Создана `docs/copy/README.md` |
+| BACKLOG-001 | Документация Copy | 2026-06 | Создан [[copy-module]] |
 
 ---
 

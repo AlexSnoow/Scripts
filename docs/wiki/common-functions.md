@@ -1,13 +1,13 @@
 # Common Functions
 
-Функции, переиспользуемые между скриптами Backup, Copy, Sync, Cleanup, Monitor.
+Функции, переиспользуемые между скриптами Backup и Copy.
 
 ## Write-Log
 ```powershell
 function Write-Log {
-    param([string]$Message)
+    param([string]$Message, [string]$Level = "INFO")
     if (-not $Message -or -not $script:GlobalLog) { return }
-    $line = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") + " " + $Message
+    $line = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") + " [" + $Level + "] " + $Message
     Add-Content -Path $script:GlobalLog -Value $line -ErrorAction SilentlyContinue
 }
 ```

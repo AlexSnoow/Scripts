@@ -10,13 +10,14 @@ app/ps/copy/
 └── Copy-Config-Example.xml  # Пример
 ```
 
-## Pipeline (6 шагов)
-1. **Preparation** — загрузка XML, валидация Jobs
-2. **Initialization** — проверка/создание директорий (RemoteDest, Arhive)
-3. **Copying** — копирование каждого файла из Source в RemoteDest
-4. **Verification** — сравнение размеров исходного и скопированного файла
-5. **Archive** — перемещение проверенного файла в Arhive
-6. **Reporting** — формирование `reports_YYYYMMDD.xml` + email
+## Pipeline (5 этапов)
+1. **Preparation** — загрузка XML, валидация Jobs, проверка/создание директорий (RemoteDest, Arhive)
+2. **Processing** — копирование каждого файла из Source в RemoteDest
+3. **Verification** — сравнение размеров исходного и скопированного файла
+4. **Post-Operations** — перемещение проверенного файла в Arhive
+5. **Reporting** — формирование отчёта `reports_YYYYMMDD.xml`
+
+> Примечание: на текущем этапе отчёт `reports_YYYYMMDD.xml` — временный формат. Целевой формат отчётности будет приведён к стандарту (XML/CSV с именем `<PCName>_<JobName>_<timestamp>`, см. [[../specify#14]]).
 
 ## Конфигурация (XML)
 | Элемент | Описание | Обязательный |
