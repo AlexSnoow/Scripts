@@ -1,76 +1,66 @@
-# PowerShell Backup Toolkit - Agent Guide
+# Backup Toolkit - Agent Guide
 
 ## Essential Commands
 
-**Run backup script (PowerShell):**
+**Run backup script (PowerShell v2.0):**
 ```powershell
-powershell.exe -Version 2.0 -executionpolicy RemoteSigned -file .\app\ps\backup\Backup-ps2-g-v4.ps1
+powershell.exe -Version 2.0 -executionpolicy RemoteSigned -file .\app\ps\<FileName>-<PSVersion>-<VersionScript>.ps1
 ```
 
 **Run backup in test mode:**
 ```powershell
-powershell.exe -Version 2.0 -executionpolicy RemoteSigned -file .\app\ps\backup\Backup-ps2-g-v4.ps1 -testmode
+powershell.exe -Version 2.0 -executionpolicy RemoteSigned -file .\app\ps\backup\<FileName>-<PSVersion>-<VersionScript>.ps1 -testmode
 ```
 
-**Run copy script (PowerShell):**
+**Run copy script (PowerShell v2.0):**
 ```powershell
-powershell.exe -executionpolicy RemoteSigned -file .\app\ps\copy\copy-ps2-v4.ps1 -ConfigurationPath .\app\ps\copy\Copy-Config.xml
+powershell.exe -Version 2.0 -executionpolicy RemoteSigned -file .\app\ps\copy\<FileName>-<PSVersion>-<VersionScript>.ps1
 ```
 
 **Run backup script (Bash/Linux/Solaris):**
 ```bash
-bash app/bash/backup-g-v4.sh
+bash app/bash/<FileName>-<OS Linux/Solaris>-<VersionScript>.sh
 ```
 
 **Run tests with Pester:**
 ```powershell
-Invoke-Pester .\app\tests\Backup.Tests.ps1
+Invoke-Pester .\app\tests\<FileName>.Tests.ps1
 ```
 
 ---
 
 ## Project Structure
 
-- **Backup script:** `app/ps/backup/Backup-ps2-g-v4.ps1`
-- **Backup config:** `app/ps/backup/Backup-Config.xml`
-- **Copy script:** `app/ps/copy/copy-ps2-v4.ps1`
-- **Copy config:** `app/ps/copy/Copy-Config.xml`
-- **Bash backup:** `app/bash/backup-g-v4.sh`
-- **Bash config:** `app/bash/backup.conf`
-- **Sync script:** `app/ps/sync/sync-ps-v4.ps1`
-- **Sync config:** `app/ps/sync/Sync-Config.xml`
-- **Cleanup script:** `app/ps/cleanup/cleanup-ps2-v4.ps1`
-- **Monitor script:** `app/ps/monitor/monitor-ps2-v4.ps1`
-- **Bash sync:** `app/bash/sync-bash-v4.sh`
-- **Bash cleanup:** `app/bash/cleanup-bash-v4.sh`
-- **Bash monitor:** `app/bash/monitor-bash-v4.sh`
-- **Tests:** `app/tests/` (Pester framework)
-- **Documentation:** `docs/`
+- **PS Backup script:** `app/ps/backup/<FileName>-<PSVersion>-<VersionScript>.ps1`
+- **PS Backup config:** `app/ps/backup/<FileName>-Config.xml`
+- **PS Copy script:** `app/ps/copy/<FileName>-<PSVersion>-<VersionScript>.ps1`
+- **PS Copy config:** `app/ps/copy/<FileName>-Config.xml`
+- **Bash Backup script:** `app/bash/backup/<FileName>-<OS Linux/Solaris>-<VersionScript>.sh`
+- **Bash config:** `app/bash/backup/<FileName>.conf`
+- **PS Sync script:** `app/ps/sync/<FileName>-<PSVersion>-<VersionScript>.ps1`
+- **PS Sync config:** `app/ps/sync/<FileName>-Config.xml`
+- **Bash Sync script:** `app/bash/<FileName>-<OS Linux/Solaris>-<VersionScript>.sh`
+- **Bash Sync config:** `app/bash/sync/<FileName>.conf`
+- **Tests:** `app/tests/` - Pester framework, Bash scripts for tests
+- **Documentation:** `docs/` - all Documentation for project
+- **User Raw Notes:** `docs/raw/` - user Notes for Documentation
+- **Knowledge base:** `docs/wiki/` - Knowledge base. Managed and formatted exclusively by the agent.
+- **Knowledge map:** `docs/wiki/index.md` - Main knowledge map of the project.
+- **Log Knowledge:** `docs/wiki/log.md`- A log of your automatic edits.
 - **Dev plan:** `docs/DEVELOPMENT_PLAN.md`
+- **Process diagrams:** `docs/diagrams/`
 
 ---
 
-## Backup Pipeline Stages
+## Pipeline Stages
 
-The script executes a unified 5-stage pipeline for all backup modes:
+The script executes a single 5-stage pipeline for all file processing modes:
 
 1. **Preparation** — Scans sources, checks files by masks
-2. **Archiving** — Creates archives (RAR/7zip/tar.gz) (single mechanism `Invoke-ArchivePipeline`)
+2. **Processing ** — Main file processing mode: Creates archives (RAR/7zip/tar.gz), Copy files
 3. **Verification** — Validates archive integrity (including 0-byte files)
 4. **Post-Operations** — Copy to network storage, rotation, cleanup
 5. **Reporting** — XML/CSV reports + email
-
-## Copy Pipeline Stages
-
-The copy script executes a unified pipeline for copying:
-
-1. **Preparation** — Load XML config, validate Jobs section
-2. **Copying** — Copy each file from Source to RemoteDest
-3. **Verification** — Integrity check (size comparison)
-4. **Archive** — Move verified file to Arhive directory
-5. **Reporting** — Generate XML report
-
----
 
 ## Important Notes
 

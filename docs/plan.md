@@ -1,37 +1,64 @@
 # Plan — Технологический стек и архитектура
 
-Этот файл описывает техническую архитектуру проекта: структуру файлов, pipeline, режимы работы, форматы конфигурации и требования к платформам.
-Доменные инварианты см. в docs/specify.md, руководящие принципы — в docs/constitution.md.
+> **Version**: 2.0 | **Date**: 2026-06-08
+>
+> Этот файл описывает техническую архитектуру проекта: структуру файлов, pipeline, режимы работы, форматы конфигурации и требования к платформам.
+> Доменные инварианты — `docs/specify.md`, руководящие принципы — `docs/constitution.md`, план развития — `docs/roadmap.md`.
 
 ## 1. Архитектура проекта
 
-### 1.1. Структура проекта
+### 1.1. Структура проекта (фактическое состояние)
 
 ```
 app/
 ├── ps/
-│   ├── backup/    backup-ps2-g-v4.ps1, Backup-Config.xml
-│   ├── copy/      copy-ps2-v4.ps1, Copy-Config.xml
-│   ├── sync/      sync-ps2-v4.ps1, Sync-Config.xml
-│   ├── cleanup/   cleanup-ps2-v4.ps1, Cleanup-Config.xml
-│   └── monitor/   monitor-ps2-v4.ps1, Monitor-Config.xml
+│   ├── backup/
+│   │   ├── backup-ps2-v6.ps1           ← основной скрипт (актуальный)
+│   │   ├── Backup-Config.xml           ← конфигурация
+│   │   ├── Backup-StatusView.ps1       ← просмотр статуса
+│   │   └── backup.7z                   ← архив скрипта
+│   └── copy/
+│       ├── copy-ps2-v4.ps1             ← основной скрипт
+│       ├── Copy-Config.xml             ← конфигурация
+│       ├── Copy-Files.ps1              ← утилита копирования
+│       └── copy.7z                     ← архив скрипта
 ├── bash/
-│   ├── backup/    backup-v4.sh, backup-config.conf
-│   ├── copy/      copy-v4.sh, copy-config.conf
-│   ├── sync/      sync-v4.sh, sync-config.conf
-│   ├── cleanup/   cleanup-v4.sh, cleanup-config.conf
-│   └── monitor/   monitor-v4.sh, monitor-config.conf
+│   └── backup/
+│       ├── backup-g-v4.sh              ← основной скрипт (актуальный)
+│       ├── backup-g-v3.sh              ← предыдущая версия
+│       ├── backup-g-v2.sh, backup-g-v1.sh ← устаревшие
+│       ├── backup.conf                 ← конфигурация
+│       └── info.md                     ← документация модуля
 ├── tests/
-│   ├── *.Tests.ps1 (Pester)
-│   └── *.sh (bash unit)
+│   ├── Backup.Tests.ps1                ← Pester тесты
+│   ├── Create-TestFiles.ps1            ← генерация тестовых данных
+│   └── *.rar, *.json                   ← тестовые файлы
+├── sandbox/                            ← экспериментальный код
+└── PS_linter.ps1                       ← линтер PowerShell
+
 docs/
-├── patterns/COMMON_FUNCTIONS.md
-├── PIPELINE_TEMPLATE.md
-├── constitution.md
-├── specify.md
-├── plan.md
-└── ...
+├── constitution.md                     ← конституция проекта
+├── specify.md                          ← спецификация (доменные инварианты)
+├── plan.md                             ← этот файл (архитектура)
+├── roadmap.md                          ← план развития
+├── README.md                           ← индекс документации
+├── raw/                                ← черновики и шаблоны
+│   ├── PIPELINE_TEMPLATE.md            ← шаблон 5-stage pipeline
+│   ├── COMMON_FUNCTIONS.md             ← справочник общих функций
+│   └── ...                             ← другие черновики
+├── patterns/                           ← паттерны кода
+├── wiki/                               ← база знаний (Zettelkasten)
+└── diagrams/                           ← диаграммы процессов
 ```
+
+**Не реализовано (планируется):**
+- `app/ps/sync/` — синхронизация
+- `app/ps/cleanup/` — очистка
+- `app/ps/monitor/` — мониторинг
+- `app/bash/copy/` — копирование (Bash)
+- `app/bash/sync/` — синхронизация (Bash)
+- `app/bash/cleanup/` — очистка (Bash)
+- `app/bash/monitor/` — мониторинг (Bash)
 
 ### 1.2. Unified Pipeline (5 этапов)
 
@@ -68,15 +95,15 @@ docs/
 | PowerShell zip | PS5.1+ (Windows) | Встроенный | try/catch | Проверка наличия и размера |
 | tar.gz | Bash (Linux/Solaris) | Встроенный | $? -eq 0 | tar -tf + gzip -t |
 
-### 1.5. Типы скриптов
+### 1.5. Типы скриптов (фактическое состояние)
 
-| Тип | Назначение | PS | Bash |
-|-----|-----------|-----|------|
-| Backup | Архивация файлов | ✅ | ✅ |
-| Copy | Копирование с верификацией | ✅ | — |
-| Sync | Синхронизация source↔dest | ✅ | ✅ |
-| Cleanup | Удаление по маскам/политикам | ✅ | ✅ |
-| Monitor | Проверка системы (диски, пути) | ✅ | ✅ |
+| Тип | Назначение | PS | Bash | Статус |
+|-----|-----------|-----|------|--------|
+| Backup | Архивация файлов | ✅ v6 | ✅ v4 | Работает |
+| Copy | Копирование с верификацией | ✅ v4 | — | Работает, нужны: email, маски, ротация |
+| Sync | Синхронизация source↔dest | Skeleton | Skeleton | Требует реализации |
+| Cleanup | Удаление по маскам/политикам | Skeleton | — | Требует реализации |
+| Monitor | Проверка системы (диски, пути) | Skeleton | — | Требует реализации |
 
 ### 1.6. Форматы конфигурации
 
