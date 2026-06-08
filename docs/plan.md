@@ -178,8 +178,154 @@ powershell.exe -executionpolicy RemoteSigned -file .\app\ps\backup\backup-ps2-v6
 
 ## 6. Паттерны и примеры кода
 
+### 6.1. Паттерны обработки ошибок
+
+#### PowerShell v2.0: try/catch
+
+`try/catch/finally` введены в PowerShell v2.0 и **гарантированно работают** на Windows 7 (PS v2.0 — системный компонент по умолчанию). В PS v1.0 этих конструкций не было (использовались только `trap`).
+
+**Важно:** `try/catch` перехватывает **только прерывающие ошибки** (terminating errors). Большинство командлетов по умолчанию генерируют непрерывающие ошибки (выводят красную строку, но продолжают работу) — `catch` их **проигнорирует**.
+
+**Вариант 1 — Глобальный (рекомендуется для скриптов):**
+```powershell
+$ErrorActionPreference = "Stop"
+try {
+    # Любая ошибка гарантированно попадёт в catch
+    Get-Item -Path "C:\НесуществующийФайл.txt"
+}
+catch {
+    Write-Log "Ошибка: $($_.Exception.Message)" -Level ERROR
+    throw
+}
+```
+
+**Вариант 2 — Локальный (для конкретного командлета):**
+```powershell
+try {
+    Get-Content -Path "C:\Data.txt" -ErrorAction Stop
+}
+catch {
+    Write-Log "Не удалось прочитать файл: $($_.Exception.Message)" -Level ERROR
+    throw
+}
+```
+
+**Проверка версии PS на целевой машине:**
+```powershell
+$PSVersionTable.PSVersion  # Major >= 2 — try/catch работает
+```
+
+#### Bash: обработка ошибок
+```bash
+set -euo pipefail
+log "ERROR: $1"
+exit 1
+```
+
+Подробнее: [[wiki\common-functions]].
+
+### 6.2. Общие функции (переиспользуемые во всех скриптах)
+
+Все функции совместимы с PS 2.0. Полные примеры — см. [[wiki\common-functions]].
+
+| Функция | Назначение | Входы | Выход |
+|---------|-----------|-------|-------|
+| `Write-Log` | Запись в лог-файл | `$Message`, `$Level` | void |
+| `Send-Email` | Отправка email через SMTP | `$Config`, `$Subject`, `$Body` | `[bool]` |
+| `Get-FileHashCompat` | SHA256 через .NET (PS 2.0) | `$Path`, `$Algorithm` | `[PSObject]` |
+| `Test-FileIntegrity` | Проверка хеша файла | `$FilePath`, `$ExpectedHash` | `[bool]` |
+| `Remove-OldFiles` | Ротация по DaysOld/KeepCount | `$Path`, `$DaysOld`, `$KeepCount` | `[string]` |
+| `Get-DiskSpaceReport` | Информация о дисках | `$ComputerName` | `[string]` |
+| `Test-Empty` | Проверка null/пустой строки | `$s` | `[bool]` |
+| `To-Bool` | Конвертация в boolean | `$v` | `[bool]` |
+
+### 6.3. Паттерны реализации
+
+#### Инициализация кодировок (PS 2.0 safe)
+```powershell
+$Script:EncodingOEM = [System.Text.Encoding]::GetEncoding(866)
+$Script:EncodingUTF8NoBOM = New-Object System.Text.UTF8Encoding $false
+```
+Логи — CP866 (OEM) для совместимости с консолью Windows. Отчёты — UTF-8 без BOM.
+
+#### Кэширование конфигурации
+```powershell
+[xml]$script:Config = Get-Content $ConfigPath
+$script:General    = $script:Config.BackupConfig.General
+$script:Paths      = $script:Config.BackupConfig.Paths
+$script:Recipients = $script:Config.BackupConfig.Recipients
+```
+Все пути и настройки читаются из XML **один раз** в начале, далее используются через script-level переменные.
+
+#### Контекст задания ($ctx)
+```powershell
+$ctx = @{
+    Config   = $Config
+    Job      = $Job
+    JobName  = $Job.Name
+    Source   = $Job.Source
+    Dest     = $Job.LocalDest
+    # ... стандартные ключи
+}
+```
+Хештаблица контекста передаётся между функциями. Стандартные ключи:
+- `Config`, `Job`, `JobName` — конфигурация
+- `Source`, `Dest` — пути
+- `RemoteDest` — удалённое хранилище (опционально)
+
+#### Быстрое сканирование файлов (PS 2.0 optimized)
+```powershell
+function Get-FilesFast {
+    param($Path, $Filter)
+    $list = New-Object System.Collections.ArrayList
+    $dir = New-Object System.IO.DirectoryInfo($Path)
+    foreach ($f in $dir.GetFiles($Filter)) {
+        [void]$list.Add($f)
+    }
+    return $list
+}
+```
+Использует .NET `System.IO.DirectoryInfo` вместо `Get-ChildItem` — быстрее в PS 2.0.
+
+#### Разрешение имён с плейсхолдерами
+```powershell
+function Resolve-Name {
+    param($Pattern, $PC, $Job, $Date, $Name)
+    $r = $Pattern
+    $r = $r -replace "{PCName}", $PC
+    $r = $r -replace "{JobName}", $Job
+    $r = $r -replace "{Date}", $Date
+    $r = $r -replace '[\\/:*?"<>|]', '_'
+    return $r
+}
+```
+Поддерживаемые плейсхолдеры: `{PCName}`, `{JobName}`, `{Date}`, `{LastWriteTime}`, `{SourceFileName}`, `{SourceFolderName}`, `{arhiveExt}`.
+
+#### Тестовый режим
+```powershell
+function Invoke-TestMode {
+    param($Config)
+    # Проверка: источники, назначения, права записи, архиватор
+    # Без реальных операций — только валидация
+    # Отправка email с результатом
+}
+```
+Проверяет: существование каталогов, права на запись, целостность архиватора. Выход: `exit 0` (OK) / `exit 1` (ошибки).
+
+#### Runner задания
+```powershell
+function Invoke-Job {
+    param($Config, $Job)
+    # Stage 1: Preparation
+    # Stage 2-4: Processing + Verification + Post-Operations
+    # Stage 5: Reporting
+    return @{ Errors = $checkErrors; Log = $jobLog }
+}
+```
+Каждое задание выполняется через `Invoke-Job`. Возвращает хештаблицу с `Errors` (int) и `Log` (array).
+
+### 6.4. Паттерны общих функций
+
 Подробные примеры реализации общих функций (Write-Log, Send-Email,
 Remove-OldFiles, Test-FileIntegrity, Get-FileHashCompat и др.)
 см. в [[wiki\common-functions]].
-
-Паттерны обработки ошибок, логирования и кодировок — там же.

@@ -1,6 +1,6 @@
 # Common Functions
 
-Функции, переиспользуемые между скриптами Backup и Copy.
+Функции, переиспользуемые между скриптами Backup, Copy и другими модулями.
 
 ## Write-Log
 ```powershell
@@ -14,6 +14,25 @@ function Write-Log {
 
 ## Send-Email (через Net.Mail.SmtpClient)
 Параметры: `$Config`, `$SmtpServer`, `$From`, `$To`, `$Subject`, `$Body`, `$Port` (default 25), `$UseSSL`. Если не указаны — берутся из `$Config`. Возвращает `[bool]`.
+
+## Test-Empty
+Проверка на null или пустую строку:
+```powershell
+function Test-Empty {
+    param([string]$s)
+    return ($s -eq $null -or $s.Trim().Length -eq 0)
+}
+```
+
+## To-Bool
+Конвертация значения в boolean (case-insensitive "true"/"false"):
+```powershell
+function To-Bool {
+    param($v)
+    if ($v -eq $null) { return $false }
+    return ($v.ToString().ToLower() -eq "true")
+}
+```
 
 ## Get-FileHashCompat
 Вычисляет SHA256 (и др.) через .NET. Параметры: `-Path`/`-LiteralPath`, `-Algorithm` (SHA1|SHA256|SHA384|SHA512|MD5). Возвращает `[PSObject]` с `Hash`, `Algorithm`, `Path`.
@@ -33,6 +52,36 @@ function Write-Log {
 
 ## Get-DiskSpaceReport
 Собирает информацию о всех жёстких дисках > 1 GB. Возвращает строку вида: `"Drive C Total(GB)=500.0 Free(GB)=150.5 Free=30.1%"`.
+
+## Get-FilesFast / Get-FoldersFast
+Быстрое сканирование файлов через .NET `System.IO.DirectoryInfo` (оптимизация для PS 2.0):
+```powershell
+function Get-FilesFast {
+    param($Path, $Filter)
+    $list = New-Object System.Collections.ArrayList
+    $dir = New-Object System.IO.DirectoryInfo($Path)
+    foreach ($f in $dir.GetFiles($Filter)) {
+        [void]$list.Add($f)
+    }
+    return $list
+}
+```
+Быстрее `Get-ChildItem` в PS 2.0.
+
+## Resolve-Name
+Разрешение имён с плейсхолдерами:
+```powershell
+function Resolve-Name {
+    param($Pattern, $PC, $Job, $Date, $Name)
+    $r = $Pattern
+    $r = $r -replace "{PCName}", $PC
+    $r = $r -replace "{JobName}", $Job
+    $r = $r -replace "{Date}", $Date
+    $r = $r -replace '[\\/:*?"<>|]', '_'
+    return $r
+}
+```
+Плейсхолдеры: `{PCName}`, `{JobName}`, `{Date}`, `{LastWriteTime}`, `{SourceFileName}`, `{SourceFolderName}`, `{arhiveExt}`.
 
 ## Error Handling
 **PowerShell:**
